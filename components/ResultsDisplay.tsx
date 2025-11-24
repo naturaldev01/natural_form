@@ -39,7 +39,7 @@ export default function ResultsDisplay({ results, onReset }: ResultsDisplayProps
             {results.length > 1 && (
               <h3 className="text-lg font-semibold text-gray-700">Image {index + 1}</h3>
             )}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+            <div className="grid grid-cols-[1fr_auto_1fr] gap-6 items-center">
               <div className="space-y-3">
                 <h4 className="text-md font-semibold text-gray-700">Before</h4>
                 <div className="relative rounded-lg overflow-hidden shadow-2xl">
@@ -51,11 +51,11 @@ export default function ResultsDisplay({ results, onReset }: ResultsDisplayProps
                 </div>
               </div>
 
-              <div className="hidden lg:flex justify-center">
+              <div className="flex justify-center">
                 <ArrowRight className="w-12 h-12 text-[#006069]" />
               </div>
 
-              <div className="space-y-3 lg:col-start-2">
+              <div className="space-y-3">
                 <h4 className="text-md font-semibold text-gray-700">After</h4>
                 <div className="relative rounded-lg overflow-hidden shadow-2xl">
                   <img
