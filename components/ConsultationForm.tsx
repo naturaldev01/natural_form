@@ -351,7 +351,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
                   onChange={(e) => setFormData({ ...formData, teethShade: e.target.value })}
                   className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all"
                 >
-                  <option value="">Select shade</option>
+                  <option value="">Select Color</option>
                   {TEETH_SHADES.map((shade) => (
                     <option key={shade.value} value={shade.value}>
                       {shade.label}
@@ -381,7 +381,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
                   onChange={(e) => setFormData({ ...formData, teethStyle: e.target.value })}
                   className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all"
                 >
-                  <option value="">Select style</option>
+                  <option value="">Select Style</option>
                   {TEETH_STYLES.map((style) => (
                     <option key={style.value} value={style.value}>
                       {style.label}
