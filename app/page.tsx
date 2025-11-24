@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import Image from 'next/image';
 import ConsultationForm from '@/components/ConsultationForm';
 import ResultsDisplay from '@/components/ResultsDisplay';
 
@@ -24,12 +24,16 @@ export default function Home() {
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 rounded-full mb-6">
-              <Sparkles className="w-8 h-8 text-white" />
+            <div className="flex justify-center mb-6">
+              <Image
+                src="https://natural.clinic/wp-content/uploads/2023/07/Natural_logo_green-01.png.webp"
+                alt="Natural Clinic logo"
+                width={240}
+                height={80}
+                priority
+              />
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              natural.clinic
-            </h1>
+              
             <p className="text-xl text-white/80">
               Discover Your Perfect Transformation
             </p>
@@ -57,4 +61,3 @@ export default function Home() {
     </div>
   );
 }
-
