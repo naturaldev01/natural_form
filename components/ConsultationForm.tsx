@@ -284,10 +284,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-gray-700 text-sm">
           <p className="font-medium text-gray-900">Step 1: Upload your photos</p>
-          <p className="mt-1 text-gray-600">
-            We&apos;ll collect your name, email, and phone after you click &quot;Get Your Transformation&quot; so we
-            can send your results securely.
-          </p>
+         
         </div>
 
         <div>
