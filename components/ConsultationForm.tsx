@@ -164,7 +164,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       formData.treatmentType === 'teeth' &&
       (!formData.teethShade || !formData.teethStyle)
     ) {
-      setError('Please choose a teeth shade and smile style');
+      setError('Please choose a teeth color and smile style');
       return;
     }
 
@@ -335,7 +335,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
                   Preferred Color
                 </label>
                 <p className="text-xs text-gray-500 mb-3">
-                  Matches the VITA shade guide from bleach (0M) to natural (A-D).
+                  Matches the VITA color guide from bleach (0M) to natural (A-D).
                   <button
                     type="button"
                     onClick={() => setShowShadeGuide(true)}
@@ -587,24 +587,24 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-[#006069] uppercase tracking-wide">Reference</p>
-                <h3 className="text-2xl font-bold text-gray-900">Teeth Shade Guide</h3>
+                <h3 className="text-2xl font-bold text-gray-900">Teeth Color Guide</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowShadeGuide(false)}
                 className="text-gray-500 hover:text-gray-800 text-2xl leading-none"
-                aria-label="Close shade guide"
+                aria-label="Close color guide"
               >
                 ×
               </button>
             </div>
             <p className="text-sm text-gray-600">
-              0M tones are brightest bleach shades, A/B are warm natural tones, C is grey, and D is a cool reddish-grey.
+              0M tones are brightest bleach colors, A/B are warm natural tones, C is grey, and D is a cool reddish-grey.
             </p>
             <div className="overflow-auto max-h-[70vh] rounded-xl border border-gray-200">
               <Image
                 src="/assets/teeth_colors.jpeg"
-                alt="Full teeth shade guide"
+                alt="Full teeth color guide"
                 width={1000}
                 height={600}
                 className="w-full h-auto object-contain"
