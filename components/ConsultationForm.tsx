@@ -332,7 +332,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label htmlFor="teethShade" className="block text-sm font-medium text-gray-700 mb-2">
-                  Preferred Shade
+                  Preferred Color
                 </label>
                 <p className="text-xs text-gray-500 mb-3">
                   Matches the VITA shade guide from bleach (0M) to natural (A-D).
