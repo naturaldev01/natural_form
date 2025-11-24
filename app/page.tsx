@@ -17,19 +17,26 @@ export default function Home() {
     phone: string;
   } | null>(null);
   const [showSummary, setShowSummary] = useState(false);
+  const [preferences, setPreferences] = useState<{
+    teethShade?: string;
+    teethStyle?: string;
+  } | null>(null);
 
   const handleSuccess = (payload: {
     results: { originalUrl: string; transformedUrl: string }[];
     contact: { firstName: string; lastName: string; email: string; phone: string };
+    preferences?: { teethShade?: string; teethStyle?: string };
   }) => {
     setResults(payload.results);
     setContactInfo(payload.contact);
+    setPreferences(payload.preferences ?? null);
     setShowSummary(true);
   };
 
   const handleReset = () => {
     setResults(null);
     setContactInfo(null);
+    setPreferences(null);
     setShowSummary(false);
   };
 
@@ -63,6 +70,7 @@ export default function Home() {
                   results={results}
                   onReset={handleReset}
                   contact={contactInfo}
+                  preferences={preferences}
                 />
               ) : (
                 <ConsultationForm onSuccess={handleSuccess} />
@@ -102,6 +110,22 @@ export default function Home() {
                 <p className="text-xs uppercase text-gray-400 tracking-wide">Phone</p>
                 <p className="text-lg font-semibold text-gray-900">{contactInfo.phone}</p>
               </div>
+              {preferences?.teethShade && (
+                <div className="border border-gray-100 rounded-xl p-4">
+                  <p className="text-xs uppercase text-gray-400 tracking-wide">Smile Preferences</p>
+                  <p className="text-sm text-gray-700">
+                    Shade: <span className="font-semibold">{preferences.teethShade}</span>
+                    {preferences.teethStyle && (
+                      <>
+                        {' '}• Style:{' '}
+                        <span className="font-semibold">
+                          {preferences.teethStyle.replace(/([A-Z])/g, ' $1').replace(/Style$/, ' Style').trim()}
+                        </span>
+                      </>
+                    )}
+                  </p>
+                </div>
+              )}
             </div>
 
             <button

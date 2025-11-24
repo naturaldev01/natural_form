@@ -13,16 +13,22 @@ interface ContactInfo {
   lastName: string;
 }
 
+interface Preferences {
+  teethShade?: string;
+  teethStyle?: string;
+}
+
 interface ResultsDisplayProps {
   results: Result[];
   onReset: () => void;
   contact?: ContactInfo | null;
+  preferences?: Preferences | null;
 }
 
 const LOGO_URL = 'https://natural.clinic/wp-content/uploads/2023/07/Natural_logo_green-01.png.webp';
 const imageDataCache = new Map<string, string>();
 
-export default function ResultsDisplay({ results, onReset, contact }: ResultsDisplayProps) {
+export default function ResultsDisplay({ results, onReset, contact, preferences }: ResultsDisplayProps) {
   const [downloading, setDownloading] = useState(false);
   const contactName = contact
     ? `${contact.firstName} ${contact.lastName}`.trim()
@@ -78,6 +84,17 @@ export default function ResultsDisplay({ results, onReset, contact }: ResultsDis
       <div className="text-center">
         <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Transformation{results.length > 1 ? 's' : ''}</h2>
         <p className="text-gray-600">See the difference our treatment can make</p>
+        {preferences?.teethShade && (
+          <p className="text-sm text-gray-500 mt-2">
+            Preferred shade: <span className="font-semibold">{preferences.teethShade}</span>
+            {preferences.teethStyle && (
+              <>
+                {' '}• Smile style:{' '}
+                <span className="font-semibold">{formatStyleLabel(preferences.teethStyle)}</span>
+              </>
+            )}
+          </p>
+        )}
       </div>
 
       <div className="space-y-8">
@@ -394,6 +411,11 @@ function concatUint8Arrays(arrays: Uint8Array[]) {
     offset += array.length;
   });
   return merged;
+}
+
+function formatStyleLabel(style: string) {
+  if (!style) return '';
+  return style.replace(/([A-Z])/g, ' $1').replace(/Style$/, ' Style').trim();
 }
 
 async function loadImageElement(src: string) {

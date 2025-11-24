@@ -15,6 +15,43 @@ const prompts: Record<string, string> = {
     "Transform this image to show fuller, healthier, more voluminous hair. Make the hair look professionally styled and treated. Keep the person's face and features exactly the same, only improve the hair to look thicker, healthier, and more vibrant. Maintain realistic lighting and natural appearance.",
 };
 
+const teethShadeDescriptions: Record<string, string> = {
+  '0M1': 'the ultra bright 0M1 bleach shade',
+  '0M2': 'the vibrant 0M2 bleach shade',
+  '0M3': 'the natural-looking 0M3 bleach shade',
+  A1: 'the A1 warm reddish-brown shade',
+  A2: 'the A2 balanced natural shade',
+  A3: 'the A3 everyday natural shade',
+  'A3.5': 'the A3.5 deeper natural shade',
+  A4: 'the A4 rich brownish shade',
+  B1: 'the B1 bright yellowish shade',
+  B2: 'the B2 creamy yellowish shade',
+  B3: 'the B3 honey yellowish shade',
+  B4: 'the B4 golden yellowish shade',
+  C1: 'the C1 soft grey shade',
+  C2: 'the C2 medium grey shade',
+  C3: 'the C3 deep grey shade',
+  C4: 'the C4 charcoal grey shade',
+  D2: 'the D2 cool reddish-grey shade',
+  D3: 'the D3 medium reddish-grey shade',
+  D4: 'the D4 deep reddish-grey shade',
+};
+
+const teethStyleDescriptions: Record<string, string> = {
+  AggressiveStyle: 'aggressive style with bold incisal edges',
+  DominantStyle: 'dominant style with pronounced central incisors',
+  EnhancedStyle: 'enhanced style with refined contours',
+  FocusedStyle: 'focused style emphasizing symmetry',
+  FunctionalStyle: 'functional style with practical contours',
+  HollywoodStyle: 'Hollywood style full, glamorous veneers',
+  MatureStyle: 'mature style with softened anatomy',
+  NaturalStyle: 'natural style with gentle texture',
+  OvalStyle: 'oval style with rounded corners',
+  SoftenedStyle: 'softened style with subtle transitions',
+  VigorousStyle: 'vigorous style with energetic shapes',
+  YouthfulStyle: 'youthful style with playful curvature',
+};
+
 const buildResponse = (body: Record<string, unknown>, status = 200) =>
   NextResponse.json(body, {
     status,
@@ -31,9 +68,15 @@ export function OPTIONS() {
   });
 }
 
+const describeTeethShade = (value?: string) =>
+  value ? teethShadeDescriptions[value] ?? value : undefined;
+
+const describeTeethStyle = (value?: string) =>
+  value ? teethStyleDescriptions[value] ?? value : undefined;
+
 export async function POST(req: Request) {
   try {
-    const { imageUrl, treatmentType } = await req.json();
+    const { imageUrl, treatmentType, teethShade, teethStyle } = await req.json();
 
     if (!imageUrl || !treatmentType) {
       return buildResponse({ error: 'Missing required fields' }, 400);
@@ -55,9 +98,24 @@ export async function POST(req: Request) {
     const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
     const mimeType = contentType.startsWith('image/') ? contentType : 'image/jpeg';
 
-    const prompt =
+    let prompt =
       prompts[treatmentType as keyof typeof prompts] ??
       prompts.teeth;
+
+    if (treatmentType === 'teeth') {
+      const shadeDescription = describeTeethShade(teethShade);
+      const styleDescription = describeTeethStyle(teethStyle);
+
+      if (shadeDescription || styleDescription) {
+        prompt += '\n';
+      }
+      if (shadeDescription) {
+        prompt += `Use a tooth color that closely matches ${shadeDescription}. `;
+      }
+      if (styleDescription) {
+        prompt += `Shape the smile to reflect a ${styleDescription} aesthetic.`;
+      }
+    }
 
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${geminiApiKey}`,
