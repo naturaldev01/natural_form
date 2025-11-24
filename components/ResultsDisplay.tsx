@@ -29,19 +29,19 @@ export default function ResultsDisplay({ results, onReset }: ResultsDisplayProps
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-white mb-2">Your Transformation{results.length > 1 ? 's' : ''}</h2>
-        <p className="text-white/70">See the difference our treatment can make</p>
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Transformation{results.length > 1 ? 's' : ''}</h2>
+        <p className="text-gray-600">See the difference our treatment can make</p>
       </div>
 
       <div className="space-y-8">
         {results.map((result, index) => (
           <div key={index} className="space-y-4">
             {results.length > 1 && (
-              <h3 className="text-lg font-semibold text-white/80">Image {index + 1}</h3>
+              <h3 className="text-lg font-semibold text-gray-700">Image {index + 1}</h3>
             )}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
               <div className="space-y-3">
-                <h4 className="text-md font-semibold text-white/90">Before</h4>
+                <h4 className="text-md font-semibold text-gray-700">Before</h4>
                 <div className="relative rounded-lg overflow-hidden shadow-2xl">
                   <img
                     src={result.originalUrl}
@@ -56,7 +56,7 @@ export default function ResultsDisplay({ results, onReset }: ResultsDisplayProps
               </div>
 
               <div className="space-y-3 lg:col-start-2">
-                <h4 className="text-md font-semibold text-white/90">After</h4>
+                <h4 className="text-md font-semibold text-gray-700">After</h4>
                 <div className="relative rounded-lg overflow-hidden shadow-2xl">
                   <img
                     src={result.transformedUrl}
@@ -97,7 +97,7 @@ export default function ResultsDisplay({ results, onReset }: ResultsDisplayProps
         )}
         <button
           onClick={onReset}
-          className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-lg transition-all"
+          className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg transition-all"
         >
           Start New Consultation
         </button>
@@ -105,4 +105,3 @@ export default function ResultsDisplay({ results, onReset }: ResultsDisplayProps
     </div>
   );
 }
-

@@ -87,6 +87,20 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       setError('Please accept the consent to proceed');
       return;
     }
+    
+    const requiredFields = [
+      { value: formData.firstName.trim(), message: 'Please enter your first name' },
+      { value: formData.lastName.trim(), message: 'Please enter your last name' },
+      { value: formData.email.trim(), message: 'Please enter your email address' },
+      { value: formData.phone.trim(), message: 'Please enter your phone number' },
+      { value: formData.treatmentType, message: 'Please select a treatment type' },
+    ];
+
+    const missingField = requiredFields.find((field) => !field.value);
+    if (missingField) {
+      setError(missingField.message);
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -175,7 +189,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label htmlFor="firstName" className="block text-sm font-medium text-white mb-2">
+          <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
             First Name
           </label>
           <input
@@ -184,13 +198,13 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
             required
             value={formData.firstName}
             onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-transparent transition-all"
+            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all"
             placeholder="Enter your first name"
           />
         </div>
 
         <div>
-          <label htmlFor="lastName" className="block text-sm font-medium text-white mb-2">
+          <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
             Last Name
           </label>
           <input
@@ -199,14 +213,14 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
             required
             value={formData.lastName}
             onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-transparent transition-all"
+            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all"
             placeholder="Enter your last name"
           />
         </div>
       </div>
 
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-white mb-2">
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
           Email Address
         </label>
         <input
@@ -215,13 +229,13 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
           required
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-transparent transition-all"
+          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all"
           placeholder="your.email@example.com"
         />
       </div>
 
       <div>
-        <label htmlFor="phone" className="block text-sm font-medium text-white mb-2">
+        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
           Phone Number
         </label>
         <input
@@ -230,13 +244,13 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
           required
           value={formData.phone}
           onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-transparent transition-all"
+          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all"
           placeholder="+1 (555) 000-0000"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-white mb-3">
+        <label className="block text-sm font-medium text-gray-700 mb-3">
           Treatment Type
         </label>
         <div className="flex gap-4">
@@ -246,7 +260,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
             className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${
               formData.treatmentType === 'teeth'
                 ? 'bg-[#006069] text-white shadow-lg'
-                : 'bg-white/10 text-white/70 hover:bg-white/20'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
             Teeth
@@ -257,7 +271,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
             className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${
               formData.treatmentType === 'hair'
                 ? 'bg-[#006069] text-white shadow-lg'
-                : 'bg-white/10 text-white/70 hover:bg-white/20'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
             Hair
@@ -266,7 +280,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-white mb-3">
+        <label className="block text-sm font-medium text-gray-700 mb-3">
           Upload Photos {formData.images.length > 0 && `(${formData.images.length} selected)`}
         </label>
         <div className="relative">
@@ -276,11 +290,12 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
             accept="image/*"
             multiple
             onChange={handleImageChange}
+            required={formData.images.length === 0}
             className="hidden"
           />
           <label
             htmlFor="image"
-            className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-white/30 rounded-lg cursor-pointer bg-white/5 hover:bg-white/10 transition-all"
+            className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all"
           >
             {previews.length > 0 ? (
               <div className="w-full h-full p-4 overflow-y-auto">
@@ -305,34 +320,35 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <Upload className="w-12 h-12 text-white/50 mb-4" />
-                <p className="mb-2 text-sm text-white/70">
+                <Upload className="w-12 h-12 text-[#006069] mb-4" />
+                <p className="mb-2 text-sm text-gray-600">
                   <span className="font-semibold">Click to upload</span> or drag and drop
                 </p>
-                <p className="text-xs text-white/50">PNG, JPG or JPEG (MAX. 5MB per image)</p>
-                <p className="text-xs text-white/40 mt-1">You can select multiple images</p>
+                <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5MB per image)</p>
+                <p className="text-xs text-gray-400 mt-1">You can select multiple images</p>
               </div>
             )}
           </label>
         </div>
       </div>
 
-      <div className="flex items-start gap-3 p-4 bg-white/5 rounded-lg border border-white/10">
+      <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
         <input
           type="checkbox"
           id="consent"
           checked={consentAccepted}
           onChange={(e) => setConsentAccepted(e.target.checked)}
-          className="mt-1 w-5 h-5 text-[#006069] bg-white/10 border-white/20 rounded focus:ring-[#006069] focus:ring-2"
+          required
+          className="mt-1 w-5 h-5 text-[#006069] bg-white border-gray-300 rounded focus:ring-[#006069] focus:ring-2"
         />
-        <label htmlFor="consent" className="text-sm text-white/90 cursor-pointer">
+        <label htmlFor="consent" className="text-sm text-gray-700 cursor-pointer">
           I consent to the processing of my personal information and photos for consultation purposes. 
           I understand that my data will be stored securely and used only for providing consultation services.
         </label>
       </div>
 
       {error && (
-        <div className="p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
           {error}
         </div>
       )}

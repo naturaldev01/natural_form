@@ -20,7 +20,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#004750] via-[#006069] to-[#004750]">
+    <div className="min-h-screen bg-white text-gray-900">
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
@@ -34,15 +34,15 @@ export default function Home() {
               />
             </div>
               
-            <p className="text-xl text-white/80">
+            <p className="text-xl text-gray-800">
               Discover Your Perfect Transformation
             </p>
-            <p className="text-white/60 mt-2">
+            <p className="text-gray-600 mt-2">
               See how our treatments can enhance your natural beauty
             </p>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 md:p-12 shadow-2xl border border-white/20">
+          <div className="bg-white rounded-2xl p-8 md:p-12 shadow-2xl border border-gray-100">
             {results ? (
               <ResultsDisplay
                 results={results}
@@ -53,7 +53,7 @@ export default function Home() {
             )}
           </div>
 
-          <div className="mt-8 text-center text-white/50 text-sm">
+          <div className="mt-8 text-center text-gray-500 text-sm">
             <p>Your privacy is important to us. All images are securely stored and processed.</p>
           </div>
         </div>
