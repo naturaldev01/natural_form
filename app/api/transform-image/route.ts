@@ -117,10 +117,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // Use Gemini 3 Pro Image (Nano Banana Pro Preview) for advanced image generation
-    // This model offers better quality, 4K resolution support, and improved text accuracy
+    // Use Gemini 2.0 Flash Exp (Nano Banana) for image generation
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${geminiApiKey}`,
       {
         method: 'POST',
         headers: {
@@ -140,6 +139,12 @@ export async function POST(req: Request) {
               ],
             },
           ],
+          generationConfig: {
+            temperature: 0.4,
+            topK: 32,
+            topP: 1,
+            maxOutputTokens: 4096,
+          },
         }),
       }
     );
