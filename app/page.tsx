@@ -80,7 +80,7 @@ export default function Home() {
             </div>
 
             <div className="mt-8 text-center text-gray-500 text-sm">
-              <p>Your privacy is important for us. All images are securely stored and processed.</p>
+              <p>Your privacy is important to us. All images are securely stored and processed.</p>
             </div>
           </div>
         </div>
