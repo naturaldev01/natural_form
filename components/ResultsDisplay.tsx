@@ -11,6 +11,7 @@ interface Result {
 interface ContactInfo {
   firstName: string;
   lastName: string;
+  email?: string;
 }
 
 interface Preferences {
@@ -30,6 +31,8 @@ const imageDataCache = new Map<string, string>();
 
 export default function ResultsDisplay({ results, onReset, contact, preferences }: ResultsDisplayProps) {
   const [downloading, setDownloading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendMessage, setSendMessage] = useState<string | null>(null);
   const contactName = contact ? `${contact.firstName} ${contact.lastName}`.trim() : 'Valued Guest';
 
   const generatePdf = async (result: Result) => {
@@ -47,6 +50,40 @@ export default function ResultsDisplay({ results, onReset, contact, preferences 
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handleSendEmail = async () => {
+    if (!contact?.email || sending) return;
+    setSending(true);
+    setSendMessage(null);
+    try {
+      const pdfBlob = await generatePdf(results[0]);
+      const pdfBase64 = await blobToBase64(pdfBlob);
+      const filename = `natural-clinic-${Date.now()}.pdf`;
+      const response = await fetch('/api/send-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pdfBase64,
+          filename,
+          toEmail: contact.email,
+          contactName,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to send email');
+      }
+
+      setSendMessage('Email sent successfully!');
+    } catch (error) {
+      setSendMessage(error instanceof Error ? error.message : 'Failed to send email');
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleSingleDownload = async () => {
@@ -152,6 +189,15 @@ export default function ResultsDisplay({ results, onReset, contact, preferences 
             {downloading ? 'Preparing PDF...' : 'Download Result'}
           </button>
         )}
+        {results.length === 1 && contact?.email && (
+          <button
+            onClick={handleSendEmail}
+            disabled={sending || downloading}
+            className="px-6 py-3 bg-[#004750] hover:bg-[#00363a] text-white font-semibold rounded-lg transition-all shadow-lg disabled:opacity-60"
+          >
+            {sending ? 'Sending…' : 'Send via Email'}
+          </button>
+        )}
         <button
           onClick={onReset}
           className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg transition-all"
@@ -159,8 +205,28 @@ export default function ResultsDisplay({ results, onReset, contact, preferences 
           Start New Consultation
         </button>
       </div>
+      {sendMessage && (
+        <p className="text-center text-sm text-gray-600">{sendMessage}</p>
+      )}
     </div>
   );
+}
+
+async function blobToBase64(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result;
+      if (typeof result === 'string') {
+        const [, base64] = result.split(',');
+        resolve(base64 ?? '');
+      } else {
+        reject(new Error('Failed to read file'));
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 async function renderResultCanvas(result: Result, contactName: string) {
