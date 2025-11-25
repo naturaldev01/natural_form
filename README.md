@@ -1,6 +1,6 @@
 # Natural Clinic - Next.js
 
-A Next.js application for natural.clinic that uses Gemini Nano-Banana API for image transformation.
+A Next.js application for natural.clinic that uses **Gemini 3 Pro Image (Nano Banana Pro Preview)** API for advanced image transformation with professional-grade results.
 
 ## Getting Started
 
@@ -54,6 +54,14 @@ npm start
 - Next.js 14 with App Router
 - TypeScript
 - Tailwind CSS
-- Supabase integration
-- Gemini Nano-Banana API for image transformation
+- Supabase integration for data storage
+- **Gemini 3 Pro Image (Nano Banana Pro Preview)** for advanced image transformation
+  - High-quality image generation (up to 4K resolution)
+  - Improved text accuracy in images
+  - Enhanced photorealism
+  - Google Search integration for real-world knowledge
+- Multi-image upload support
+- GDPR-compliant consent checkbox
+- Before/After comparison display
+- Batch download functionality
 

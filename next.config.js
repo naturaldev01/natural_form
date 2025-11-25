@@ -9,10 +9,11 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'natural.clinic',
+        hostname: 'qdfewglxhqyvrmcflsdj.supabase.co',
       },
     ],
   },
 };
 
 module.exports = nextConfig;
+
