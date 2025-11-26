@@ -346,7 +346,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       }
 
       // PDF oluştur ve mail gönder
-      const pdfBlob = await generatePdf(transformationResults[0], `${contactInfo.firstName} ${contactInfo.lastName}`);
+      const pdfBlob = await generatePdf(transformationResults[0], `${contactInfo.firstName} ${contactInfo.lastName}`, formData.treatmentType);
       const pdfBase64 = await blobToBase64(pdfBlob);
       const filename = `natural-clinic-${Date.now()}.pdf`;
       const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
@@ -636,8 +636,16 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
                   <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#006069] to-[#004750] rounded-full mb-4">
                     <Mail className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Your Smile is Ready! ✨</h3>
-                  <p className="text-gray-600">We'd love to send your personalized smile design directly to your inbox</p>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                    {formData.treatmentType === 'teeth' 
+                      ? 'Your Smile is Ready! ✨' 
+                      : 'Your Refined Look Awaits ✨'}
+                  </h3>
+                  <p className="text-gray-600">
+                    {formData.treatmentType === 'teeth'
+                      ? "We'd love to send your personalized smile design directly to your inbox"
+                      : "We'd love to send your personalized hair transformation directly to your inbox"}
+                  </p>
                 </div>
 
                 <div className="space-y-4">
@@ -867,12 +875,12 @@ async function blobToBase64(blob: Blob) {
   });
 }
 
-async function generatePdf(result: TransformationResult, contactName: string) {
-  const canvas = await renderResultCanvas(result, contactName);
+async function generatePdf(result: TransformationResult, contactName: string, treatmentType: 'teeth' | 'hair' = 'teeth') {
+  const canvas = await renderResultCanvas(result, contactName, treatmentType);
   return createPdfFromCanvas(canvas);
 }
 
-async function renderResultCanvas(result: TransformationResult, contactName: string) {
+async function renderResultCanvas(result: TransformationResult, contactName: string, treatmentType: 'teeth' | 'hair' = 'teeth') {
   const canvas = document.createElement('canvas');
   const width = 1120;
   const height = 1654;
@@ -897,7 +905,10 @@ async function renderResultCanvas(result: TransformationResult, contactName: str
   
   ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
   ctx.fillStyle = '#006069';
-  ctx.fillText('Here is your personalized smile design preview', 120, 360);
+  const previewText = treatmentType === 'teeth' 
+    ? 'Here is your personalized smile design preview'
+    : 'Here is your personalized hair transformation preview';
+  ctx.fillText(previewText, 120, 360);
 
   const boxWidth = (width - 320) / 2;
   const boxHeight = boxWidth * 0.78;
