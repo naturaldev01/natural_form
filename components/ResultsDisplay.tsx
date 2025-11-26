@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowRight, Download } from 'lucide-react';
+import { ArrowRight, Mail, X, CheckCircle, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 interface Result {
   originalUrl: string;
@@ -11,7 +12,8 @@ interface Result {
 interface ContactInfo {
   firstName: string;
   lastName: string;
-  email?: string;
+  email: string;
+  phone: string;
 }
 
 interface Preferences {
@@ -24,42 +26,65 @@ interface ResultsDisplayProps {
   onReset: () => void;
   contact?: ContactInfo | null;
   preferences?: Preferences | null;
+  locked?: boolean;
+  onUnlock?: (info: ContactInfo) => void;
 }
 
 const LOGO_URL = 'https://natural.clinic/wp-content/uploads/2023/07/Natural_logo_green-01.png.webp';
 const imageDataCache = new Map<string, string>();
 
-export default function ResultsDisplay({ results, onReset, contact, preferences }: ResultsDisplayProps) {
-  const [downloading, setDownloading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [sendMessage, setSendMessage] = useState<string | null>(null);
-  const contactName = contact ? `${contact.firstName} ${contact.lastName}`.trim() : 'Valued Guest';
+export default function ResultsDisplay({ 
+  results, 
+  onReset, 
+  preferences 
+}: ResultsDisplayProps) {
+  const [contactInfo, setContactInfo] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+  });
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const generatePdf = async (result: Result) => {
-    const canvas = await renderResultCanvas(result, contactName);
-    return createPdfFromCanvas(canvas);
-  };
-
-  const triggerDownload = (blob: Blob, index: number) => {
-    const fileNameSafe = contactName.replace(/\s+/g, '-').toLowerCase() || 'transformation';
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `natural-clinic-${fileNameSafe}-${index + 1}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const isContactComplete = () => {
+    return (
+      contactInfo.firstName.trim() !== '' &&
+      contactInfo.lastName.trim() !== '' &&
+      contactInfo.email.trim() !== '' &&
+      contactInfo.phone.trim() !== ''
+    );
   };
 
   const handleSendEmail = async () => {
-    if (!contact?.email || sending) return;
-    setSending(true);
-    setSendMessage(null);
+    if (!isContactComplete()) return;
+    
+    setSubmitting(true);
+
     try {
-      const pdfBlob = await generatePdf(results[0]);
+      // Veritabanına kaydet
+      for (const result of results) {
+        const { error: dbError } = await supabase.from('consultations').insert({
+          first_name: contactInfo.firstName.trim(),
+          last_name: contactInfo.lastName.trim(),
+          email: contactInfo.email.trim(),
+          phone: contactInfo.phone.trim(),
+          treatment_type: preferences?.teethShade ? 'teeth' : 'hair',
+          original_image_url: result.originalUrl,
+          transformed_image_url: result.transformedUrl,
+        });
+
+        if (dbError) throw dbError;
+      }
+
+      // PDF oluştur ve mail gönder
+      const pdfBlob = await generatePdf(results[0], `${contactInfo.firstName} ${contactInfo.lastName}`);
       const pdfBase64 = await blobToBase64(pdfBlob);
       const filename = `natural-clinic-${Date.now()}.pdf`;
+      const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
+      
       const response = await fetch('/api/send-pdf', {
         method: 'POST',
         headers: {
@@ -68,7 +93,7 @@ export default function ResultsDisplay({ results, onReset, contact, preferences 
         body: JSON.stringify({
           pdfBase64,
           filename,
-          toEmail: contact.email,
+          toEmail: contactInfo.email,
           contactName,
         }),
       });
@@ -78,46 +103,28 @@ export default function ResultsDisplay({ results, onReset, contact, preferences 
         throw new Error(data.error || 'Failed to send email');
       }
 
-      setSendMessage('Email sent successfully!');
+      setIsUnlocked(true);
+      setSuccessMessage('Results sent to your email!');
+      setShowSuccessModal(true);
     } catch (error) {
-      setSendMessage(error instanceof Error ? error.message : 'Failed to send email');
+      console.error('Error:', error);
+      alert('Failed to send email. Please try again.');
     } finally {
-      setSending(false);
+      setSubmitting(false);
     }
   };
 
-  const handleSingleDownload = async () => {
-    if (downloading) return;
-    setDownloading(true);
-    try {
-      const pdfBlob = await generatePdf(results[0]);
-      triggerDownload(pdfBlob, 0);
-    } catch (error) {
-      console.error('Failed to generate PDF', error);
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  const downloadAll = async () => {
-    if (downloading) return;
-    setDownloading(true);
-    try {
-      for (let i = 0; i < results.length; i++) {
-        const pdfBlob = await generatePdf(results[i]);
-        triggerDownload(pdfBlob, i);
-      }
-    } catch (error) {
-      console.error('Failed to download PDFs', error);
-    } finally {
-      setDownloading(false);
-    }
+  const formatStyleLabel = (style: string) => {
+    if (!style) return '';
+    return style.replace(/([A-Z])/g, ' $1').replace(/Style$/, ' Style').trim();
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 relative">
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Transformation{results.length > 1 ? 's' : ''}</h2>
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">
+          Your Transformation{results.length > 1 ? 's' : ''}
+        </h2>
         <p className="text-gray-600">See the difference our treatment can make</p>
         {preferences?.teethShade && (
           <p className="text-sm text-gray-500 mt-2">
@@ -132,6 +139,7 @@ export default function ResultsDisplay({ results, onReset, contact, preferences 
         )}
       </div>
 
+      {/* Before/After Display - Always blurred until unlocked */}
       <div className="space-y-8">
         {results.map((result, index) => (
           <div key={index} className="space-y-4">
@@ -140,8 +148,8 @@ export default function ResultsDisplay({ results, onReset, contact, preferences 
             )}
             <div className="grid grid-cols-[1fr_auto_1fr] gap-6 items-center">
               <div className="space-y-3">
-                <h4 className="text-md font-semibold text-gray-700">Before</h4>
-                <div className="relative rounded-lg overflow-hidden shadow-2xl">
+                <h4 className="text-md font-semibold text-gray-700 text-center">Before</h4>
+                <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-gray-200">
                   <img
                     src={result.originalUrl}
                     alt={`Original ${index + 1}`}
@@ -155,13 +163,22 @@ export default function ResultsDisplay({ results, onReset, contact, preferences 
               </div>
 
               <div className="space-y-3">
-                <h4 className="text-md font-semibold text-gray-700">After</h4>
-                <div className="relative rounded-lg overflow-hidden shadow-2xl">
+                <h4 className="text-md font-semibold text-gray-700 text-center">After</h4>
+                <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-gray-200">
                   <img
                     src={result.transformedUrl}
                     alt={`Transformed ${index + 1}`}
-                    className="w-full h-auto object-cover"
+                    className={`w-full h-auto object-cover transition-all duration-500 ${
+                      !isUnlocked ? 'blur-xl scale-105' : 'blur-0 scale-100'
+                    }`}
                   />
+                  {!isUnlocked && (
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#006069]/30 to-[#004750]/40 backdrop-blur-sm flex items-center justify-center">
+                      <div className="text-center text-white bg-[#006069]/90 px-6 py-3 rounded-xl shadow-lg">
+                        <p className="font-semibold text-sm">Enter your details to unlock</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -169,49 +186,156 @@ export default function ResultsDisplay({ results, onReset, contact, preferences 
         ))}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 justify-center">
-        {results.length > 1 ? (
+      {/* Pop-up Modal for Contact Form */}
+      {!isUnlocked && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 space-y-6 animate-in zoom-in duration-300 border border-gray-100">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#006069] to-[#004750] rounded-full mb-4">
+                <Mail className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Almost There!</h3>
+              <p className="text-gray-600">Enter your details to receive your transformation results via email</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    First Name
+                  </label>
+                  <input
+                    id="firstName"
+                    type="text"
+                    value={contactInfo.firstName}
+                    onChange={(e) => setContactInfo({ ...contactInfo, firstName: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all"
+                    placeholder="John"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Last Name
+                  </label>
+                  <input
+                    id="lastName"
+                    type="text"
+                    value={contactInfo.lastName}
+                    onChange={(e) => setContactInfo({ ...contactInfo, lastName: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all"
+                    placeholder="Doe"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Email Address
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={contactInfo.email}
+                  onChange={(e) => setContactInfo({ ...contactInfo, email: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all"
+                  placeholder="your.email@example.com"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Phone Number
+                </label>
+                <input
+                  id="phone"
+                  type="tel"
+                  value={contactInfo.phone}
+                  onChange={(e) => setContactInfo({ ...contactInfo, phone: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all"
+                  placeholder="+90 555 123 4567"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleSendEmail}
+              disabled={!isContactComplete() || submitting}
+              className="w-full py-4 px-6 bg-gradient-to-r from-[#006069] to-[#004750] hover:from-[#004750] hover:to-[#003840] text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-3"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Mail className="w-5 h-5" />
+                  Send via Email
+                </>
+              )}
+            </button>
+
+            <p className="text-xs text-gray-500 text-center">
+              Your information will be kept secure and used only for consultation purposes.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons - Visible when unlocked */}
+      {isUnlocked && (
+        <div className="space-y-4">
           <button
-            onClick={downloadAll}
-            disabled={downloading}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-lg transition-all shadow-lg disabled:opacity-60"
+            onClick={onReset}
+            className="w-full px-6 py-4 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-xl transition-all shadow-lg"
           >
-            <Download className="w-5 h-5" />
-            {downloading ? 'Preparing PDFs...' : 'Download All Results'}
+            Start New Consultation
           </button>
-        ) : (
-          <button
-            onClick={handleSingleDownload}
-            disabled={downloading}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-lg transition-all shadow-lg disabled:opacity-60"
-          >
-            <Download className="w-5 h-5" />
-            {downloading ? 'Preparing PDF...' : 'Download Result'}
-          </button>
-        )}
-        {results.length === 1 && contact?.email && (
-          <button
-            onClick={handleSendEmail}
-            disabled={sending || downloading}
-            className="px-6 py-3 bg-[#004750] hover:bg-[#00363a] text-white font-semibold rounded-lg transition-all shadow-lg disabled:opacity-60"
-          >
-            {sending ? 'Sending…' : 'Send via Email'}
-          </button>
-        )}
-        <button
-          onClick={onReset}
-          className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg transition-all"
-        >
-          Start New Consultation
-        </button>
-      </div>
-      {sendMessage && (
-        <p className="text-center text-sm text-gray-600">{sendMessage}</p>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 space-y-6 animate-in zoom-in duration-300">
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="text-center space-y-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full">
+                <CheckCircle className="w-10 h-10 text-green-600" />
+              </div>
+              
+              <h3 className="text-2xl font-bold text-gray-900">
+                Success!
+              </h3>
+              
+              <p className="text-gray-600 text-lg">
+                {successMessage}
+              </p>
+            </div>
+
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full py-3 px-6 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-xl transition-all"
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
+// PDF Generation Functions
 async function blobToBase64(blob: Blob) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -229,7 +353,12 @@ async function blobToBase64(blob: Blob) {
   });
 }
 
-async function renderResultCanvas(result: Result, contactName: string) {
+async function generatePdf(result: { originalUrl: string; transformedUrl: string }, contactName: string) {
+  const canvas = await renderResultCanvas(result, contactName);
+  return createPdfFromCanvas(canvas);
+}
+
+async function renderResultCanvas(result: { originalUrl: string; transformedUrl: string }, contactName: string) {
   const canvas = document.createElement('canvas');
   const width = 1120;
   const height = 1654;
@@ -290,16 +419,11 @@ async function renderHeader(ctx: CanvasRenderingContext2D, width: number) {
     const topMargin = 80;
 
     ctx.drawImage(logo, logoX, topMargin, logoWidth, logoHeight);
-
-    ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#0f5f64';
-    ctx.fillText('Design Studio', logoX + logoWidth + 20, topMargin + 30);
   } catch {
     ctx.textAlign = 'center';
     ctx.font = 'bold 48px "Helvetica Neue", Arial, sans-serif';
     ctx.fillStyle = '#0f5f64';
-    ctx.fillText('Natural Clinic Design Studio', width / 2, 140);
+    ctx.fillText('Natural Clinic', width / 2, 140);
   }
 }
 
@@ -478,17 +602,13 @@ function concatUint8Arrays(arrays: Uint8Array[]) {
   return merged;
 }
 
-function formatStyleLabel(style: string) {
-  if (!style) return '';
-  return style.replace(/([A-Z])/g, ' $1').replace(/Style$/, ' Style').trim();
-}
-
 async function loadImageElement(src: string) {
   const resolvedSrc = await getImageDataUrl(src);
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
     image.onerror = (error) => reject(error);
+    image.crossOrigin = 'anonymous';
     image.src = resolvedSrc;
   });
 }

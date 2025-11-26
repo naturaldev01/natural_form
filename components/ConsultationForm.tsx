@@ -2,28 +2,98 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Upload, Loader2 } from 'lucide-react';
+import { Upload, Loader2, Mail, X, CheckCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface FormData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
   treatmentType: 'teeth' | 'hair';
   teethShade: string;
   teethStyle: string;
   images: File[];
 }
 
+interface TransformationResult {
+  originalUrl: string;
+  transformedUrl: string;
+}
+
+interface ContactInfo {
+  firstName: string;
+  lastName: string;
+  email: string;
+  countryCode: string;
+  phone: string;
+}
+
+const COUNTRY_CODES = [
+  { code: '+90', country: 'Turkey', flag: '🇹🇷' },
+  { code: '+1', country: 'USA/Canada', flag: '🇺🇸' },
+  { code: '+44', country: 'UK', flag: '🇬🇧' },
+  { code: '+49', country: 'Germany', flag: '🇩🇪' },
+  { code: '+33', country: 'France', flag: '🇫🇷' },
+  { code: '+39', country: 'Italy', flag: '🇮🇹' },
+  { code: '+34', country: 'Spain', flag: '🇪🇸' },
+  { code: '+31', country: 'Netherlands', flag: '🇳🇱' },
+  { code: '+32', country: 'Belgium', flag: '🇧🇪' },
+  { code: '+41', country: 'Switzerland', flag: '🇨🇭' },
+  { code: '+43', country: 'Austria', flag: '🇦🇹' },
+  { code: '+46', country: 'Sweden', flag: '🇸🇪' },
+  { code: '+47', country: 'Norway', flag: '🇳🇴' },
+  { code: '+45', country: 'Denmark', flag: '🇩🇰' },
+  { code: '+358', country: 'Finland', flag: '🇫🇮' },
+  { code: '+48', country: 'Poland', flag: '🇵🇱' },
+  { code: '+420', country: 'Czech Republic', flag: '🇨🇿' },
+  { code: '+36', country: 'Hungary', flag: '🇭🇺' },
+  { code: '+30', country: 'Greece', flag: '🇬🇷' },
+  { code: '+351', country: 'Portugal', flag: '🇵🇹' },
+  { code: '+353', country: 'Ireland', flag: '🇮🇪' },
+  { code: '+7', country: 'Russia', flag: '🇷🇺' },
+  { code: '+380', country: 'Ukraine', flag: '🇺🇦' },
+  { code: '+40', country: 'Romania', flag: '🇷🇴' },
+  { code: '+359', country: 'Bulgaria', flag: '🇧🇬' },
+  { code: '+381', country: 'Serbia', flag: '🇷🇸' },
+  { code: '+385', country: 'Croatia', flag: '🇭🇷' },
+  { code: '+386', country: 'Slovenia', flag: '🇸🇮' },
+  { code: '+971', country: 'UAE', flag: '🇦🇪' },
+  { code: '+966', country: 'Saudi Arabia', flag: '🇸🇦' },
+  { code: '+974', country: 'Qatar', flag: '🇶🇦' },
+  { code: '+973', country: 'Bahrain', flag: '🇧🇭' },
+  { code: '+965', country: 'Kuwait', flag: '🇰🇼' },
+  { code: '+968', country: 'Oman', flag: '🇴🇲' },
+  { code: '+972', country: 'Israel', flag: '🇮🇱' },
+  { code: '+962', country: 'Jordan', flag: '🇯🇴' },
+  { code: '+961', country: 'Lebanon', flag: '🇱🇧' },
+  { code: '+20', country: 'Egypt', flag: '🇪🇬' },
+  { code: '+212', country: 'Morocco', flag: '🇲🇦' },
+  { code: '+213', country: 'Algeria', flag: '🇩🇿' },
+  { code: '+216', country: 'Tunisia', flag: '🇹🇳' },
+  { code: '+27', country: 'South Africa', flag: '🇿🇦' },
+  { code: '+234', country: 'Nigeria', flag: '🇳🇬' },
+  { code: '+254', country: 'Kenya', flag: '🇰🇪' },
+  { code: '+91', country: 'India', flag: '🇮🇳' },
+  { code: '+92', country: 'Pakistan', flag: '🇵🇰' },
+  { code: '+880', country: 'Bangladesh', flag: '🇧🇩' },
+  { code: '+86', country: 'China', flag: '🇨🇳' },
+  { code: '+81', country: 'Japan', flag: '🇯🇵' },
+  { code: '+82', country: 'South Korea', flag: '🇰🇷' },
+  { code: '+84', country: 'Vietnam', flag: '🇻🇳' },
+  { code: '+66', country: 'Thailand', flag: '🇹🇭' },
+  { code: '+65', country: 'Singapore', flag: '🇸🇬' },
+  { code: '+60', country: 'Malaysia', flag: '🇲🇾' },
+  { code: '+62', country: 'Indonesia', flag: '🇮🇩' },
+  { code: '+63', country: 'Philippines', flag: '🇵🇭' },
+  { code: '+61', country: 'Australia', flag: '🇦🇺' },
+  { code: '+64', country: 'New Zealand', flag: '🇳🇿' },
+  { code: '+55', country: 'Brazil', flag: '🇧🇷' },
+  { code: '+52', country: 'Mexico', flag: '🇲🇽' },
+  { code: '+54', country: 'Argentina', flag: '🇦🇷' },
+  { code: '+56', country: 'Chile', flag: '🇨🇱' },
+  { code: '+57', country: 'Colombia', flag: '🇨🇴' },
+  { code: '+51', country: 'Peru', flag: '🇵🇪' },
+];
+
 interface ConsultationResultPayload {
-  results: { originalUrl: string; transformedUrl: string }[];
-  contact: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-  };
+  results: TransformationResult[];
   preferences?: {
     teethShade?: string;
     teethStyle?: string;
@@ -74,12 +144,11 @@ const TEETH_STYLES = [
   label: value.replace(/([A-Z])/g, ' $1').replace(/Style$/, ' Style').trim(),
 }));
 
+const LOGO_URL = 'https://natural.clinic/wp-content/uploads/2023/07/Natural_logo_green-01.png.webp';
+const imageDataCache = new Map<string, string>();
+
 export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
   const [formData, setFormData] = useState<FormData>({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
     treatmentType: 'teeth',
     teethShade: '',
     teethStyle: '',
@@ -88,11 +157,23 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
   const [previews, setPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [consentAccepted, setConsentAccepted] = useState(false);
-  const [showContactModal, setShowContactModal] = useState(false);
-  const [contactModalError, setContactModalError] = useState<string | null>(null);
+  const [consentAccepted, setConsentAccepted] = useState(true);
   const [showShadeGuide, setShowShadeGuide] = useState(false);
   const [showStyleGuide, setShowStyleGuide] = useState(false);
+
+  // Transformation results state
+  const [transformationResults, setTransformationResults] = useState<TransformationResult[] | null>(null);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactInfo, setContactInfo] = useState<ContactInfo>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    countryCode: '+90',
+    phone: '',
+  });
+  const [submittingContact, setSubmittingContact] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -142,12 +223,6 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
     setPreviews(newPreviews);
   };
 
-  const isContactInfoComplete = () => {
-    return [formData.firstName, formData.lastName, formData.email, formData.phone].every(
-      (field) => field.trim().length > 0
-    );
-  };
-
   const submitForm = async () => {
     if (!consentAccepted) {
       setError('Please accept the consent to proceed');
@@ -167,17 +242,11 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       return;
     }
 
-    if (!isContactInfoComplete()) {
-      setContactModalError(null);
-      setShowContactModal(true);
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
     try {
-      const results: { originalUrl: string; transformedUrl: string }[] = [];
+      const results: TransformationResult[] = [];
 
       for (let i = 0; i < formData.images.length; i++) {
         const image = formData.images[i];
@@ -227,36 +296,12 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
 
         const transformedUrl = transformData.transformedUrl;
         results.push({ originalUrl: publicUrl, transformedUrl });
-
-        const { error: dbError } = await supabase.from('consultations').insert({
-          first_name: formData.firstName.trim(),
-          last_name: formData.lastName.trim(),
-          email: formData.email.trim(),
-          phone: formData.phone.trim(),
-          treatment_type: formData.treatmentType,
-          original_image_url: publicUrl,
-          transformed_image_url: transformedUrl,
-        });
-
-        if (dbError) throw dbError;
       }
 
-      onSuccess({
-        results,
-        contact: {
-          firstName: formData.firstName.trim(),
-          lastName: formData.lastName.trim(),
-          email: formData.email.trim(),
-          phone: formData.phone.trim(),
-        },
-        preferences:
-          formData.treatmentType === 'teeth'
-            ? {
-                teethShade: formData.teethShade,
-                teethStyle: formData.teethStyle,
-              }
-            : undefined,
-      });
+      // Sonuçları kaydet ve pop-up'ı göster
+      setTransformationResults(results);
+      setShowContactModal(true);
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -269,29 +314,109 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
     await submitForm();
   };
 
-  const handleContactContinue = async () => {
-    if (!isContactInfoComplete()) {
-      setContactModalError('Please fill out all contact details');
-      return;
-    }
+  const isContactComplete = () => {
+    return (
+      contactInfo.firstName.trim() !== '' &&
+      contactInfo.lastName.trim() !== '' &&
+      contactInfo.email.trim() !== '' &&
+      contactInfo.phone.trim() !== ''
+    );
+  };
 
-    setContactModalError(null);
-    setShowContactModal(false);
-    await submitForm();
+  const handleSendEmail = async () => {
+    if (!isContactComplete() || !transformationResults) return;
+    
+    setSubmittingContact(true);
+
+    try {
+      // Veritabanına kaydet
+      const fullPhoneNumber = `${contactInfo.countryCode}${contactInfo.phone.trim().replace(/\s/g, '')}`;
+      for (const result of transformationResults) {
+        const { error: dbError } = await supabase.from('consultations').insert({
+          first_name: contactInfo.firstName.trim(),
+          last_name: contactInfo.lastName.trim(),
+          email: contactInfo.email.trim(),
+          phone: fullPhoneNumber,
+          treatment_type: formData.teethShade ? 'teeth' : 'hair',
+          original_image_url: result.originalUrl,
+          transformed_image_url: result.transformedUrl,
+        });
+
+        if (dbError) throw dbError;
+      }
+
+      // PDF oluştur ve mail gönder
+      const pdfBlob = await generatePdf(transformationResults[0], `${contactInfo.firstName} ${contactInfo.lastName}`);
+      const pdfBase64 = await blobToBase64(pdfBlob);
+      const filename = `natural-clinic-${Date.now()}.pdf`;
+      const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
+      
+      const response = await fetch('/api/send-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pdfBase64,
+          filename,
+          toEmail: contactInfo.email,
+          contactName,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to send email');
+      }
+
+      // onSuccess'i çağır
+      onSuccess({
+        results: transformationResults,
+        preferences:
+          formData.treatmentType === 'teeth'
+            ? {
+                teethShade: formData.teethShade,
+                teethStyle: formData.teethStyle,
+              }
+            : undefined,
+      });
+
+      setShowContactModal(false);
+      setSuccessMessage('Results sent to your email!');
+      setShowSuccessModal(true);
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Failed to send email. Please try again.');
+    } finally {
+      setSubmittingContact(false);
+    }
+  };
+
+  const handleCloseAndReset = () => {
+    setShowSuccessModal(false);
+    // Formu sıfırla
+    setFormData({
+      treatmentType: 'teeth',
+      teethShade: '',
+      teethStyle: '',
+      images: [],
+    });
+    setPreviews([]);
+    setTransformationResults(null);
+    setContactInfo({
+      firstName: '',
+      lastName: '',
+      email: '',
+      countryCode: '+90',
+      phone: '',
+    });
   };
 
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-gray-700 text-sm">
-          <p className="font-medium text-gray-900">Step 1: Upload your photos</p>
-          <p className="mt-1 text-gray-600">
-            We&apos;ll collect your name, email, and phone after you click &quot;Get Your Transformation&quot; so we
-            can send your results securely.
-          </p>
-        </div>
-
-        <div>
+        
+        <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 mb-3">
             Treatment Type
           </label>
@@ -299,7 +424,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
             <button
               type="button"
               onClick={() => setFormData({ ...formData, treatmentType: 'teeth' })}
-              className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${
+              className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all shadow-sm ${
                 formData.treatmentType === 'teeth'
                   ? 'bg-[#006069] text-white shadow-lg'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -332,7 +457,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="teethShade" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="teethShade" className="block text-sm font-semibold text-gray-700 mb-2">
                   Preferred Color
                 </label>
                 <p className="text-xs text-gray-500 mb-3">
@@ -350,7 +475,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
                   required
                   value={formData.teethShade}
                   onChange={(e) => setFormData({ ...formData, teethShade: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all"
+                  className="w-full px-4 py-3 bg-white/90 border border-gray-200 rounded-2xl shadow-inner text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0f7c83] focus:border-[#0f7c83] transition-all"
                 >
                   <option value="">Select color</option>
                   {TEETH_SHADES.map((shade) => (
@@ -362,7 +487,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
               </div>
 
               <div>
-                <label htmlFor="teethStyle" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="teethStyle" className="block text-sm font-semibold text-gray-700 mb-2">
                   Smile Style
                 </label>
                 <p className="text-xs text-gray-500 mb-3">
@@ -380,7 +505,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
                   required
                   value={formData.teethStyle}
                   onChange={(e) => setFormData({ ...formData, teethStyle: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all"
+                  className="w-full px-4 py-3 bg-white/90 border border-gray-200 rounded-2xl shadow-inner text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0f7c83] focus:border-[#0f7c83] transition-all"
                 >
                   <option value="">Select style</option>
                   {TEETH_STYLES.map((style) => (
@@ -410,7 +535,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
             />
             <label
               htmlFor="image"
-              className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all"
+              className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-white hover:from-white hover:to-gray-50 transition-all shadow-inner"
             >
               {previews.length > 0 ? (
                 <div className="w-full h-full p-4 overflow-y-auto">
@@ -424,7 +549,11 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
                         />
                         <button
                           type="button"
-                          onClick={() => removeImage(index)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            removeImage(index);
+                          }}
                           className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           ×
@@ -447,7 +576,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
           </div>
         </div>
 
-        <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-200 shadow-sm">
           <input
             type="checkbox"
             id="consent"
@@ -471,7 +600,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
         <button
           type="submit"
           disabled={loading || !consentAccepted || formData.images.length === 0}
-          className="w-full py-4 px-6 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
+          className="w-full py-4 px-6 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
         >
           {loading ? (
             <>
@@ -484,100 +613,167 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
         </button>
       </form>
 
-      {showContactModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 space-y-6">
-            <div className="text-center space-y-2">
-              <p className="text-sm font-semibold text-[#006069] uppercase tracking-wide">Step 2</p>
-              <h3 className="text-2xl font-bold text-gray-900">Tell us about you</h3>
-              <p className="text-gray-600">We&apos;ll use this information to send your personalized results.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="modal-first-name" className="block text-sm font-medium text-gray-700 mb-2">
-                  First Name
-                </label>
-                <input
-                  id="modal-first-name"
-                  type="text"
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all"
-                  placeholder="Enter your first name"
-                />
-              </div>
-              <div>
-                <label htmlFor="modal-last-name" className="block text-sm font-medium text-gray-700 mb-2">
-                  Last Name
-                </label>
-                <input
-                  id="modal-last-name"
-                  type="text"
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all"
-                  placeholder="Enter your last name"
+      {/* Contact Modal with Blurred Background Image */}
+      {showContactModal && transformationResults && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          {/* Container for both blurred image and modal */}
+          <div className="relative max-w-4xl w-full">
+            {/* Blurred Transformed Image Behind Modal - Same size as form container */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="bg-white rounded-2xl p-8 md:p-12 shadow-2xl border border-gray-100 w-full overflow-hidden">
+                <img
+                  src={transformationResults[0].transformedUrl}
+                  alt="Transformation Preview"
+                  className="w-full h-auto object-contain blur-xl opacity-70 scale-105"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="modal-email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <input
-                  id="modal-email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all"
-                  placeholder="your.email@example.com"
-                />
-              </div>
-              <div>
-                <label htmlFor="modal-phone" className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone Number
-                </label>
-                <input
-                  id="modal-phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all"
-                  placeholder="+1 (555) 000-0000"
-                />
+            {/* Contact Form Modal - Centered on top */}
+            <div className="relative z-10 flex items-center justify-center py-8">
+              <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 space-y-6 animate-in zoom-in duration-300 border border-gray-100">
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#006069] to-[#004750] rounded-full mb-4">
+                    <Mail className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Your Smile is Ready! ✨</h3>
+                  <p className="text-gray-600">We'd love to send your personalized smile design directly to your inbox</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="modal-firstName" className="block text-sm font-medium text-gray-700 mb-1.5">
+                        First Name
+                      </label>
+                      <input
+                        id="modal-firstName"
+                        type="text"
+                        value={contactInfo.firstName}
+                        onChange={(e) => setContactInfo({ ...contactInfo, firstName: e.target.value })}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all"
+                        placeholder="John"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="modal-lastName" className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Last Name
+                      </label>
+                      <input
+                        id="modal-lastName"
+                        type="text"
+                        value={contactInfo.lastName}
+                        onChange={(e) => setContactInfo({ ...contactInfo, lastName: e.target.value })}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all"
+                        placeholder="Doe"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-email" className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Email Address
+                    </label>
+                    <input
+                      id="modal-email"
+                      type="email"
+                      value={contactInfo.email}
+                      onChange={(e) => setContactInfo({ ...contactInfo, email: e.target.value })}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all"
+                      placeholder="your.email@example.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-phone" className="block text-sm font-medium text-gray-700 mb-1.5">
+                      WhatsApp Number
+                    </label>
+                    <div className="flex gap-2">
+                      <select
+                        id="modal-countryCode"
+                        value={contactInfo.countryCode}
+                        onChange={(e) => setContactInfo({ ...contactInfo, countryCode: e.target.value })}
+                        className="w-32 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all text-sm"
+                      >
+                        {COUNTRY_CODES.map((country) => (
+                          <option key={country.code} value={country.code}>
+                            {country.flag} {country.code}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        id="modal-phone"
+                        type="tel"
+                        value={contactInfo.phone}
+                        onChange={(e) => setContactInfo({ ...contactInfo, phone: e.target.value })}
+                        className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all"
+                        placeholder="555 123 4567"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleSendEmail}
+                  disabled={!isContactComplete() || submittingContact}
+                  className="w-full py-4 px-6 bg-gradient-to-r from-[#006069] to-[#004750] hover:from-[#004750] hover:to-[#003840] text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-3"
+                >
+                  {submittingContact ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-5 h-5" />
+                      Send via Email
+                    </>
+                  )}
+                </button>
+
+                <p className="text-xs text-gray-500 text-center">
+                  Your information will be kept secure and used only for consultation purposes.
+                </p>
               </div>
             </div>
+          </div>
+        </div>
+      )}
 
-            {contactModalError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                {contactModalError}
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row sm:justify-end gap-3">
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 space-y-6 animate-in zoom-in duration-300">
+            <div className="flex justify-end">
               <button
-                type="button"
-                onClick={() => {
-                  setShowContactModal(false);
-                  setContactModalError(null);
-                }}
-                className="w-full sm:w-auto px-5 py-3 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all"
-                disabled={loading}
+                onClick={handleCloseAndReset}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleContactContinue}
-                className="w-full sm:w-auto px-5 py-3 rounded-lg bg-[#006069] hover:bg-[#004750] text-white font-semibold transition-all disabled:opacity-50"
-                disabled={loading}
-              >
-                Continue
+                <X className="w-6 h-6" />
               </button>
             </div>
+
+            <div className="text-center space-y-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full">
+                <CheckCircle className="w-10 h-10 text-green-600" />
+              </div>
+              
+              <h3 className="text-2xl font-bold text-gray-900">
+                Success!
+              </h3>
+              
+              <p className="text-gray-600 text-lg">
+                {successMessage}
+              </p>
+            </div>
+
+            <button
+              onClick={handleCloseAndReset}
+              className="w-full py-3 px-6 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-xl transition-all"
+            >
+              Got it!
+            </button>
           </div>
         </div>
       )}
@@ -651,4 +847,341 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       )}
     </>
   );
+}
+
+// PDF Generation Functions
+async function blobToBase64(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result;
+      if (typeof result === 'string') {
+        const [, base64] = result.split(',');
+        resolve(base64 ?? '');
+      } else {
+        reject(new Error('Failed to read file'));
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function generatePdf(result: TransformationResult, contactName: string) {
+  const canvas = await renderResultCanvas(result, contactName);
+  return createPdfFromCanvas(canvas);
+}
+
+async function renderResultCanvas(result: TransformationResult, contactName: string) {
+  const canvas = document.createElement('canvas');
+  const width = 1120;
+  const height = 1654;
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    throw new Error('Unable to render PDF preview');
+  }
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+
+  await renderHeader(ctx, width);
+
+  // "Dear Name Surname" yazısı - resimlerin üzerinde, sol tarafa hizalı, Design Studio rengi
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#006069';
+  ctx.font = '32px "Helvetica Neue", Arial, sans-serif';
+  ctx.fillText(`Dear ${contactName || 'Valued Guest'},`, 120, 320);
+  
+  ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
+  ctx.fillStyle = '#006069';
+  ctx.fillText('Here is your personalized smile design preview', 120, 360);
+
+  const boxWidth = (width - 320) / 2;
+  const boxHeight = boxWidth * 0.78;
+  const boxY = 420;
+  const beforeX = 120;
+  const afterX = width - 120 - boxWidth;
+
+  ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#0f5f64';
+  ctx.fillText('Before', beforeX, boxY - 20);
+  ctx.textAlign = 'right';
+  ctx.fillText('After', afterX + boxWidth, boxY - 20);
+
+  await Promise.all([
+    drawImagePanel(ctx, result.originalUrl, beforeX, boxY, boxWidth, boxHeight),
+    drawImagePanel(ctx, result.transformedUrl, afterX, boxY, boxWidth, boxHeight),
+  ]);
+
+  ctx.textAlign = 'center';
+  ctx.font = '28px "Helvetica Neue", Arial, sans-serif';
+  ctx.fillStyle = '#0f5f64';
+  ctx.fillText('www.natural.clinic', width / 2, height - 120);
+
+  return canvas;
+}
+
+async function renderHeader(ctx: CanvasRenderingContext2D, width: number) {
+  try {
+    const logo = await loadImageElement(LOGO_URL);
+    const maxLogoWidth = 380;
+    const maxLogoHeight = 160;
+    const scale = Math.min(maxLogoWidth / logo.width, maxLogoHeight / logo.height);
+    const logoWidth = logo.width * scale;
+    const logoHeight = logo.height * scale;
+    
+    // Logo ve "Design Studio" yan yana olacak şekilde konumlandır
+    const totalWidth = logoWidth + 20 + 150; // logo + gap + text width
+    const startX = (width - totalWidth) / 2;
+    const topMargin = 80;
+
+    // Logo çiz
+    ctx.drawImage(logo, startX, topMargin, logoWidth, logoHeight);
+    
+    // "Design Studio" yazısı - logonun sağ üst kısmında
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 24px "Helvetica Neue", Arial, sans-serif';
+    ctx.fillStyle = '#006069';
+    ctx.fillText('Design Studio', startX + logoWidth + 15, topMargin + 35);
+  } catch {
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 48px "Helvetica Neue", Arial, sans-serif';
+    ctx.fillStyle = '#0f5f64';
+    ctx.fillText('Natural Clinic', width / 2, 140);
+    
+    // Fallback durumunda da Design Studio yazısını ekle
+    ctx.font = 'bold 24px "Helvetica Neue", Arial, sans-serif';
+    ctx.fillStyle = '#006069';
+    ctx.fillText('Design Studio', width / 2 + 180, 120);
+  }
+}
+
+async function drawImagePanel(
+  ctx: CanvasRenderingContext2D,
+  src: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
+  drawRoundedRect(ctx, x, y, width, height, 24, '#e6ecec');
+
+  const innerX = x + 16;
+  const innerY = y + 16;
+  const innerWidth = width - 32;
+  const innerHeight = height - 32;
+
+  if (!src) {
+    ctx.fillStyle = '#f7f9fa';
+    roundedRectPath(ctx, innerX, innerY, innerWidth, innerHeight, 16);
+    ctx.fill();
+    return;
+  }
+
+  try {
+    const image = await loadImageElement(src);
+    ctx.fillStyle = '#f7f9fa';
+    roundedRectPath(ctx, innerX, innerY, innerWidth, innerHeight, 16);
+    ctx.fill();
+    ctx.save();
+    roundedRectPath(ctx, innerX, innerY, innerWidth, innerHeight, 16);
+    ctx.clip();
+    drawImageWithinBox(ctx, image, innerX, innerY, innerWidth, innerHeight);
+    ctx.restore();
+  } catch (error) {
+    console.error('Failed to draw image', error);
+    ctx.fillStyle = '#f7f9fa';
+    roundedRectPath(ctx, innerX, innerY, innerWidth, innerHeight, 16);
+    ctx.fill();
+  }
+}
+
+function drawRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+  color: string
+) {
+  ctx.fillStyle = color;
+  roundedRectPath(ctx, x, y, width, height, radius);
+  ctx.fill();
+}
+
+function roundedRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function drawImageWithinBox(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
+  const scale = Math.min(width / image.width, height / image.height);
+  const drawWidth = image.width * scale;
+  const drawHeight = image.height * scale;
+  const offsetX = x + (width - drawWidth) / 2;
+  const offsetY = y + (height - drawHeight) / 2;
+  ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+}
+
+function createPdfFromCanvas(canvas: HTMLCanvasElement) {
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+  const base64 = dataUrl.replace(/^data:image\/jpeg;base64,/, '');
+  const binary = atob(base64);
+  const imgBytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    imgBytes[i] = binary.charCodeAt(i);
+  }
+  return createPdfFromImageBytes(imgBytes, canvas.width, canvas.height);
+}
+
+function createPdfFromImageBytes(imageBytes: Uint8Array, width: number, height: number) {
+  const encoder = new TextEncoder();
+  const chunks: Uint8Array[] = [];
+  const offsets: number[] = [];
+  let currentOffset = 0;
+
+  const push = (data: Uint8Array) => {
+    chunks.push(data);
+    currentOffset += data.length;
+  };
+
+  const pushString = (value: string) => {
+    push(encoder.encode(value));
+  };
+
+  const startObject = () => {
+    offsets.push(currentOffset);
+  };
+
+  pushString('%PDF-1.3\n');
+
+  startObject();
+  pushString('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+
+  startObject();
+  pushString('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+
+  startObject();
+  pushString(
+    `3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /XObject << /Im0 4 0 R >> >> /MediaBox [0 0 ${width} ${height}] /Contents 5 0 R >>\nendobj\n`
+  );
+
+  startObject();
+  pushString(
+    `4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imageBytes.length} >>\nstream\n`
+  );
+  push(imageBytes);
+  pushString('\nendstream\nendobj\n');
+
+  const contentStream = `q
+${width} 0 0 ${height} 0 0 cm
+/Im0 Do
+Q
+`;
+  const contentBytes = encoder.encode(contentStream);
+
+  startObject();
+  pushString(`5 0 obj\n<< /Length ${contentBytes.length} >>\nstream\n`);
+  push(contentBytes);
+  pushString('endstream\nendobj\n');
+
+  const xrefOffset = currentOffset;
+  pushString('xref\n0 6\n0000000000 65535 f \n');
+  offsets.forEach((offset) => {
+    pushString(`${offset.toString().padStart(10, '0')} 00000 n \n`);
+  });
+  pushString('trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n');
+  pushString(`${xrefOffset}\n%%EOF`);
+
+  return new Blob([concatUint8Arrays(chunks)], { type: 'application/pdf' });
+}
+
+function concatUint8Arrays(arrays: Uint8Array[]) {
+  const totalLength = arrays.reduce((acc, array) => acc + array.length, 0);
+  const merged = new Uint8Array(totalLength);
+  let offset = 0;
+  arrays.forEach((array) => {
+    merged.set(array, offset);
+    offset += array.length;
+  });
+  return merged;
+}
+
+async function loadImageElement(src: string) {
+  const resolvedSrc = await getImageDataUrl(src);
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = (error) => reject(error);
+    image.crossOrigin = 'anonymous';
+    image.src = resolvedSrc;
+  });
+}
+
+async function getImageDataUrl(src: string) {
+  if (!src) {
+    throw new Error('Missing image source');
+  }
+
+  if (src.startsWith('data:')) {
+    return src;
+  }
+
+  const cached = imageDataCache.get(src);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const response = await fetch('/api/image-proxy', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url: src }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to proxy image');
+    }
+
+    const data: { dataUrl?: string } = await response.json();
+    if (!data.dataUrl) {
+      throw new Error('Proxy did not return data URL');
+    }
+
+    imageDataCache.set(src, data.dataUrl);
+    return data.dataUrl;
+  } catch (error) {
+    console.error('Image proxy failed', error);
+    return src;
+  }
 }
