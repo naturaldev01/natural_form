@@ -513,11 +513,11 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
         'Natural Clinic Team'
       ].join('\n');
 
-      // Telefon numarasını temizle (+ işaretini kaldır)
-      let cleanPhone = fullPhoneNumber.replace(/[^0-9]/g, '');
+      // Klinik WhatsApp numarasını al (.env'den)
+      const clinicWhatsApp = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '905370407687';
       
-      // WhatsApp web linkini oluştur
-      const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+      // WhatsApp web linkini oluştur - mesaj KLİNİĞE gidecek
+      const whatsappUrl = `https://wa.me/${clinicWhatsApp}?text=${encodeURIComponent(message)}`;
       console.log('WhatsApp link:', whatsappUrl);
       
       // Önceden açılan pencereyi WhatsApp'a yönlendir (Safari uyumlu)
