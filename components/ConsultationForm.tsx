@@ -315,12 +315,18 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
     await submitForm();
   };
 
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const PHONE_REGEX = /^[0-9\s]{6,15}$/;
+
   const isContactComplete = () => {
+    const email = contactInfo.email.trim();
+    const phone = contactInfo.phone.trim().replace(/\s/g, '');
+    
     return (
-      contactInfo.firstName.trim() !== '' &&
-      contactInfo.lastName.trim() !== '' &&
-      contactInfo.email.trim() !== '' &&
-      contactInfo.phone.trim() !== ''
+      contactInfo.firstName.trim().length >= 2 &&
+      contactInfo.lastName.trim().length >= 2 &&
+      EMAIL_REGEX.test(email) &&
+      PHONE_REGEX.test(phone)
     );
   };
 
@@ -386,7 +392,6 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       setSuccessMessage('Results sent to your email!');
       setShowSuccessModal(true);
     } catch (error) {
-      console.error('Error:', error);
       alert('Failed to send email. Please try again.');
     } finally {
       setSubmittingContact(false);
@@ -397,7 +402,6 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
     if (!isContactComplete() || !transformationResults) return;
     
     setSubmittingWhatsApp(true);
-    console.log('=== Starting WhatsApp Send Process ===');
 
     // Safari uyumluluğu için HEMEN boş pencere aç (kullanıcı etkileşimi anında)
     const whatsappWindow = window.open('about:blank', '_blank');
@@ -455,17 +459,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
     try {
       const fullPhoneNumber = `${contactInfo.countryCode}${contactInfo.phone.trim().replace(/\s/g, '')}`;
       const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
-      
-      console.log('Contact Info:', {
-        firstName: contactInfo.firstName,
-        lastName: contactInfo.lastName,
-        email: contactInfo.email,
-        phone: fullPhoneNumber,
-        countryCode: contactInfo.countryCode,
-      });
 
-      // Önce veritabanına kaydet
-      console.log('Saving to database...');
       for (const result of transformationResults) {
         const { error: dbError } = await supabase.from('consultations').insert({
           first_name: contactInfo.firstName.trim(),
@@ -478,19 +472,11 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
         });
 
         if (dbError) {
-          console.error('Database Error:', dbError);
           throw dbError;
         }
       }
-      console.log('Database save successful');
 
-      // PDF oluştur
-      console.log('Generating PDF...');
       const pdfBlob = await generatePdf(transformationResults[0], contactName, formData.treatmentType);
-      console.log('PDF generated, size:', pdfBlob.size);
-
-      // PDF'i Supabase'e yükle
-      console.log('Uploading PDF to Supabase...');
       // Türkçe karakterleri ASCII'ye çevir ve özel karakterleri temizle
       const sanitizedName = contactName
         .normalize('NFD')
@@ -520,31 +506,22 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
         });
 
       if (uploadError) {
-        console.error('PDF Upload Error:', uploadError);
         throw uploadError;
       }
 
       const { data: { publicUrl: pdfUrl } } = supabase.storage
         .from('consultation-images')
         .getPublicUrl(pdfFileName);
-      
-      console.log('PDF uploaded, URL:', pdfUrl);
 
-      // URL'yi kısalt
-      console.log('Shortening URL...');
       let shortUrl = pdfUrl;
       try {
         const tinyUrlResponse = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(pdfUrl)}`);
         if (tinyUrlResponse.ok) {
           shortUrl = await tinyUrlResponse.text();
-          console.log('Shortened URL:', shortUrl);
         }
-      } catch (urlError) {
-        console.warn('URL shortening failed, using original URL:', urlError);
+      } catch {
+        // URL shortening failed, use original URL
       }
-
-      // WhatsApp mesajı oluştur ve wa.me linkini aç
-      console.log('Opening WhatsApp...');
       const treatmentLabel = formData.treatmentType === 'teeth' ? 'smile design' : 'hair transformation';
       const message = [
         `Hello ${contactName}!`,
@@ -563,12 +540,8 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
         'Natural Clinic Team'
       ].join('\n');
 
-      // Klinik WhatsApp numarasını al (.env'den)
       const clinicWhatsApp = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '905370407687';
-      
-      // WhatsApp web linkini oluştur - mesaj KLİNİĞE gidecek
       const whatsappUrl = `https://wa.me/${clinicWhatsApp}?text=${encodeURIComponent(message)}`;
-      console.log('WhatsApp link:', whatsappUrl);
       
       // Önceden açılan pencereyi WhatsApp'a yönlendir (Safari uyumlu)
       if (whatsappWindow) {
@@ -593,9 +566,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       setShowContactModal(false);
       setSuccessMessage('Results sent via WhatsApp!');
       setShowSuccessModal(true);
-      console.log('WhatsApp send process completed successfully!');
     } catch (error) {
-      console.error('WhatsApp Send Error:', error);
       alert(`Failed to send via WhatsApp: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setSubmittingWhatsApp(false);
@@ -1233,8 +1204,7 @@ async function drawImagePanel(
     ctx.clip();
     drawImageWithinBox(ctx, image, innerX, innerY, innerWidth, innerHeight);
     ctx.restore();
-  } catch (error) {
-    console.error('Failed to draw image', error);
+  } catch {
     ctx.fillStyle = '#f7f9fa';
     roundedRectPath(ctx, innerX, innerY, innerWidth, innerHeight, 16);
     ctx.fill();
@@ -1421,8 +1391,7 @@ async function getImageDataUrl(src: string) {
 
     imageDataCache.set(src, data.dataUrl);
     return data.dataUrl;
-  } catch (error) {
-    console.error('Image proxy failed', error);
+  } catch {
     return src;
   }
 }

@@ -1,0 +1,99 @@
+[13 tools called]
+
+İşte projenin tam yapısı:
+
+---
+
+## 📁 Proje Yapısı - Natural Clinic Design Studio
+
+### 🗂️ `/app` - Next.js App Router Sayfaları
+
+| Dosya | Açıklama |
+|-------|----------|
+| `page.tsx` | Ana sayfa - ConsultationForm gösterir |
+| `layout.tsx` | Root layout - metadata ve genel yapı |
+| `globals.css` | Global CSS stilleri |
+| `login/page.tsx` | Giriş sayfası - email/şifre ile auth |
+| `register/page.tsx` | Kayıt sayfası - patient/sales rolü seçimi |
+| `dashboard/page.tsx` | Staff dashboard - transformation yapma, geçmiş görme |
+| `admin/page.tsx` | Admin paneli - kullanıcı yönetimi, onay sistemi |
+
+### 🗂️ `/app/api` - API Routes
+
+| Dosya | Açıklama |
+|-------|----------|
+| `transform-image/route.ts` | **Gemini AI** ile görsel dönüşüm - diş/saç transformasyonu |
+| `send-pdf/route.ts` | Gmail SMTP ile PDF email gönderimi |
+| `image-proxy/route.ts` | CORS sorunlarını aşmak için görsel proxy |
+| `send-whatsapp/route.ts` | ⚠️ Deprecated - artık wa.me linki kullanılıyor |
+| `auth/login/route.ts` | Server-side login API |
+
+### 🗂️ `/components` - React Bileşenleri
+
+| Dosya | Açıklama |
+|-------|----------|
+| `ConsultationForm.tsx` | **Ana form** - fotoğraf yükleme, tercihler, transformation, PDF oluşturma, Email/WhatsApp gönderimi |
+| `ResultsDisplay.tsx` | Sonuç gösterimi (şu an devre dışı) |
+
+### 🗂️ `/lib` - Utility Fonksiyonları
+
+| Dosya | Açıklama |
+|-------|----------|
+| `supabase.ts` | Supabase client + Consultation interface |
+| `auth.ts` | Auth fonksiyonları - signUp, signIn, signOut, getCurrentUser, role check |
+
+### 🗂️ `/supabase` - Supabase Yapılandırması
+
+| Dosya | Açıklama |
+|-------|----------|
+| `migrations/` | Veritabanı migration dosyaları |
+| `functions/transform-image/` | Edge function (kullanılmıyor) |
+
+### 🗂️ `/public/assets` - Statik Dosyalar
+
+| Dosya | Açıklama |
+|-------|----------|
+| `teeth_colors.jpeg` | VITA renk skalası görseli |
+| `teeth_styles.jpeg` | Diş stilleri görseli |
+
+---
+
+## 🔧 Temel Özellikler
+
+### 1. **Transformation Flow** (ConsultationForm.tsx)
+- Tedavi tipi seçimi (Teeth/Hair)
+- Diş rengi ve stili seçimi
+- Fotoğraf yükleme (Supabase Storage)
+- Gemini AI ile görsel dönüşüm
+- PDF oluşturma (Canvas API)
+- Email gönderimi (Gmail SMTP)
+- WhatsApp paylaşımı (wa.me linki)
+
+### 2. **Auth Sistemi** (auth.ts)
+- Supabase Auth
+- Roller: patient, sales, doctor, admin
+- Sales hesapları admin onayı gerektirir
+
+### 3. **Dashboard** (dashboard/page.tsx)
+- Staff için transformation arayüzü
+- Consultation geçmişi
+- PDF indirme
+
+### 4. **Admin Panel** (admin/page.tsx)
+- Kullanıcı yönetimi
+- Onay/red sistemi
+- Rol değiştirme
+- Tüm consultations görüntüleme
+
+---
+
+## 🗄️ Veritabanı (Supabase)
+
+### Tablolar:
+1. **consultations** - Transformation kayıtları
+2. **user_profiles** - Kullanıcı profilleri (auth trigger ile oluşturulur)
+
+### Storage Buckets:
+1. **consultation-images** - Yüklenen görseller ve PDF'ler
+
+---

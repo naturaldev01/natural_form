@@ -6,13 +6,61 @@ export const runtime = 'nodejs';
 const smtpHost = 'smtp.gmail.com';
 const smtpPort = 465;
 
+// Email validation regex
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Base64 validation - check if it's a valid base64 string
+const BASE64_REGEX = /^[A-Za-z0-9+/]+=*$/;
+// Max PDF size: 10MB in base64 (roughly 13.3MB in base64)
+const MAX_PDF_SIZE = 10 * 1024 * 1024 * 1.37;
+
 export async function POST(req: Request) {
   try {
-    const { pdfBase64, filename, toEmail, contactName } = await req.json();
+    const body = await req.json();
+    const { pdfBase64, filename, toEmail, contactName } = body;
 
-    if (!pdfBase64 || !filename || !toEmail) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    // Input validation
+    if (!pdfBase64 || typeof pdfBase64 !== 'string') {
+      return NextResponse.json({ error: 'PDF data is required' }, { status: 400 });
     }
+
+    if (!BASE64_REGEX.test(pdfBase64)) {
+      return NextResponse.json({ error: 'Invalid PDF data format' }, { status: 400 });
+    }
+
+    if (pdfBase64.length > MAX_PDF_SIZE) {
+      return NextResponse.json({ error: 'PDF file too large (max 10MB)' }, { status: 400 });
+    }
+
+    if (!filename || typeof filename !== 'string') {
+      return NextResponse.json({ error: 'Filename is required' }, { status: 400 });
+    }
+
+    if (!filename.endsWith('.pdf')) {
+      return NextResponse.json({ error: 'Filename must end with .pdf' }, { status: 400 });
+    }
+
+    // Sanitize filename to prevent path traversal
+    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '');
+    if (sanitizedFilename !== filename) {
+      return NextResponse.json({ error: 'Invalid characters in filename' }, { status: 400 });
+    }
+
+    if (!toEmail || typeof toEmail !== 'string') {
+      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    }
+
+    if (!EMAIL_REGEX.test(toEmail)) {
+      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
+    }
+
+    if (contactName && typeof contactName !== 'string') {
+      return NextResponse.json({ error: 'Invalid contact name' }, { status: 400 });
+    }
+
+    // Sanitize contact name (max 100 chars, no special chars)
+    const sanitizedContactName = contactName 
+      ? contactName.slice(0, 100).replace(/[<>]/g, '')
+      : '';
 
     const user = process.env.GMAIL_EMAIL;
     const pass = process.env.GMAIL_PASSWORD;
@@ -26,14 +74,13 @@ export async function POST(req: Request) {
       pass,
       to: toEmail,
       subject: 'Your Natural Clinic Transformation',
-      text: `Hi ${contactName || 'there'},\n\nThank you for trying Natural Clinic. Your transformation is attached as a PDF.\n\nBest regards,\nNatural Clinic`,
+      text: `Hi ${sanitizedContactName || 'there'},\n\nThank you for trying Natural Clinic. Your transformation is attached as a PDF.\n\nBest regards,\nNatural Clinic`,
       attachmentBase64: pdfBase64,
-      filename,
+      filename: sanitizedFilename,
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Send PDF error:', error);
     return NextResponse.json(
       {
         error: 'Failed to send email',

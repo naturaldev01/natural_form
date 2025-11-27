@@ -19,38 +19,26 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
 
-    console.log('Login: Starting login for', email);
-
     try {
-      // Use server-side API route to bypass CORS/network issues
-      console.log('Login: Calling API route...');
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
       
-      console.log('Login: API response status:', response.status);
       const data = await response.json();
-      console.log('Login: API response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Login failed');
       }
 
-      // Set session in client-side Supabase
-      console.log('Login: Setting session...');
       const { supabase } = await import('@/lib/supabase');
       
       if (data.session) {
-        const { error: sessionError } = await supabase.auth.setSession({
+        await supabase.auth.setSession({
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token,
         });
-
-        if (sessionError) {
-          console.error('Login: Session error:', sessionError);
-        }
       }
 
       const profile = data.profile;
@@ -67,16 +55,12 @@ export default function LoginPage() {
         return;
       }
 
-      console.log('Login: Success! Redirecting based on role:', profile.role);
-      
-      // Redirect based on role
       if (profile.role === 'patient') {
         router.push('/');
       } else {
         router.push('/dashboard');
       }
     } catch (err: any) {
-      console.error('Login error:', err);
       setError(err.message || 'Invalid email or password');
       setLoading(false);
     }
@@ -187,31 +171,6 @@ export default function LoginPage() {
           <Link href="/" className="text-sm text-[#006069] hover:underline">
             ← Back to Home
           </Link>
-        </div>
-
-        {/* Debug: Test Supabase Connection */}
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={async () => {
-              console.log('Testing Supabase connection...');
-              try {
-                const res = await fetch('https://qdfewglxhqyvrmcflsdj.supabase.co/rest/v1/', {
-                  headers: {
-                    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkZmV3Z2x4aHF5dnJtY2Zsc2RqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM5OTU0MjAsImV4cCI6MjA3OTU3MTQyMH0.ZGO3m1Ppn5CcMyi_wmi8-QSa7sc8yyKGk_Hc6r2HtPU'
-                  }
-                });
-                console.log('Supabase connection test:', res.status, res.statusText);
-                alert(`Supabase connection: ${res.status} ${res.statusText}`);
-              } catch (err) {
-                console.error('Supabase connection error:', err);
-                alert(`Connection error: ${err}`);
-              }
-            }}
-            className="text-xs text-gray-400 hover:text-gray-600"
-          >
-            Test Connection
-          </button>
         </div>
       </div>
     </div>

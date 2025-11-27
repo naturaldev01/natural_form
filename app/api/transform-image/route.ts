@@ -2,10 +2,15 @@ import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
+// CORS - restrict to same origin in production
+const allowedOrigins = process.env.NODE_ENV === 'production' 
+  ? [process.env.NEXT_PUBLIC_APP_URL || ''].filter(Boolean)
+  : ['*'];
+
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
+  'Access-Control-Allow-Origin': allowedOrigins[0] || '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
 };
 
 const prompts: Record<string, string> = {
@@ -74,12 +79,57 @@ const describeTeethShade = (value?: string) =>
 const describeTeethStyle = (value?: string) =>
   value ? teethStyleDescriptions[value] ?? value : undefined;
 
+// URL validation
+const URL_REGEX = /^https?:\/\/.+/i;
+// Valid treatment types
+const VALID_TREATMENT_TYPES = ['teeth', 'hair'];
+// Valid teeth shades
+const VALID_TEETH_SHADES = ['0M1', '0M2', '0M3', 'A1', 'A2', 'A3', 'A3.5', 'A4', 'B1', 'B2', 'B3', 'B4', 'C1', 'C2', 'C3', 'C4', 'D2', 'D3', 'D4'];
+// Valid teeth styles
+const VALID_TEETH_STYLES = ['AggressiveStyle', 'DominantStyle', 'EnhancedStyle', 'FocusedStyle', 'FunctionalStyle', 'HollywoodStyle', 'MatureStyle', 'NaturalStyle', 'OvalStyle', 'SoftenedStyle', 'VigorousStyle', 'YouthfulStyle'];
+
 export async function POST(req: Request) {
   try {
-    const { imageUrl, treatmentType, teethShade, teethStyle } = await req.json();
+    const body = await req.json();
+    const { imageUrl, treatmentType, teethShade, teethStyle } = body;
 
-    if (!imageUrl || !treatmentType) {
-      return buildResponse({ error: 'Missing required fields' }, 400);
+    // Input validation
+    if (!imageUrl || typeof imageUrl !== 'string') {
+      return buildResponse({ error: 'Image URL is required' }, 400);
+    }
+
+    if (!URL_REGEX.test(imageUrl)) {
+      return buildResponse({ error: 'Invalid image URL format' }, 400);
+    }
+
+    // Only allow URLs from trusted domains (Supabase storage)
+    const allowedDomains = ['supabase.co', 'supabase.in'];
+    try {
+      const urlObj = new URL(imageUrl);
+      const isAllowed = allowedDomains.some(domain => urlObj.hostname.endsWith(domain));
+      if (!isAllowed) {
+        return buildResponse({ error: 'Image URL must be from Supabase storage' }, 400);
+      }
+    } catch {
+      return buildResponse({ error: 'Invalid image URL' }, 400);
+    }
+
+    if (!treatmentType || typeof treatmentType !== 'string') {
+      return buildResponse({ error: 'Treatment type is required' }, 400);
+    }
+
+    if (!VALID_TREATMENT_TYPES.includes(treatmentType)) {
+      return buildResponse({ error: 'Invalid treatment type. Must be "teeth" or "hair"' }, 400);
+    }
+
+    // Validate teeth-specific fields
+    if (treatmentType === 'teeth') {
+      if (teethShade && !VALID_TEETH_SHADES.includes(teethShade)) {
+        return buildResponse({ error: 'Invalid teeth shade value' }, 400);
+      }
+      if (teethStyle && !VALID_TEETH_STYLES.includes(teethStyle)) {
+        return buildResponse({ error: 'Invalid teeth style value' }, 400);
+      }
     }
 
     const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -92,11 +142,23 @@ export async function POST(req: Request) {
       return buildResponse({ error: 'Failed to fetch image' }, 400);
     }
 
-    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-    const base64Image = imageBuffer.toString('base64');
-
     const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
-    const mimeType = contentType.startsWith('image/') ? contentType : 'image/jpeg';
+    
+    // Validate content type is an image
+    if (!contentType.startsWith('image/')) {
+      return buildResponse({ error: 'URL does not point to an image' }, 400);
+    }
+
+    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+    
+    // Check image size (max 10MB)
+    const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+    if (imageBuffer.length > MAX_IMAGE_SIZE) {
+      return buildResponse({ error: 'Image too large (max 10MB)' }, 400);
+    }
+
+    const base64Image = imageBuffer.toString('base64');
+    const mimeType = contentType;
 
     let prompt =
       prompts[treatmentType as keyof typeof prompts] ??
@@ -151,7 +213,6 @@ export async function POST(req: Request) {
 
     if (!geminiResponse.ok) {
       const details = await geminiResponse.text();
-      console.error('Gemini API error:', details);
       return buildResponse(
         {
           error: 'Failed to process image with Gemini API',
@@ -184,12 +245,6 @@ export async function POST(req: Request) {
     }
 
     if (!transformedImageData) {
-      const textParts = parts
-        .filter((p: { text?: string }) => p.text)
-        .map((p: { text?: string }) => p.text)
-        .join(' ');
-
-      console.log('Gemini text response:', textParts);
       return buildResponse(
         {
           transformedUrl: imageUrl,
@@ -202,7 +257,6 @@ export async function POST(req: Request) {
     const transformedUrl = `data:image/png;base64,${transformedImageData}`;
     return buildResponse({ transformedUrl });
   } catch (error) {
-    console.error('Error transforming image:', error);
     return buildResponse(
       {
         error: 'Internal server error',
