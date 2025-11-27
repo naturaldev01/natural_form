@@ -78,8 +78,7 @@ export default function AdminPage() {
       }
 
       setProfile(userData.profile);
-    } catch (err) {
-      console.error('Auth check error:', err);
+    } catch {
       router.push('/login');
     } finally {
       setLoading(false);
@@ -110,8 +109,8 @@ export default function AdminPage() {
 
       if (error) throw error;
       setUsers(data || []);
-    } catch (err) {
-      console.error('Error fetching users:', err);
+    } catch {
+      // Failed to fetch users
     } finally {
       setLoadingUsers(false);
     }
@@ -143,8 +142,8 @@ export default function AdminPage() {
       });
 
       setConsultations(consultationsWithCreators);
-    } catch (err) {
-      console.error('Error fetching consultations:', err);
+    } catch {
+      // Failed to fetch consultations
     } finally {
       setLoadingConsultations(false);
     }
@@ -164,8 +163,7 @@ export default function AdminPage() {
       setUsers(users.map(user => 
         user.id === userId ? { ...user, is_approved: true } : user
       ));
-    } catch (err) {
-      console.error('Error approving user:', err);
+    } catch {
       alert('Failed to approve user');
     } finally {
       setProcessingId(null);
@@ -190,8 +188,7 @@ export default function AdminPage() {
       setUsers(users.map(user => 
         user.id === userId ? { ...user, is_approved: false } : user
       ));
-    } catch (err) {
-      console.error('Error rejecting user:', err);
+    } catch {
       alert('Failed to reject user');
     } finally {
       setProcessingId(null);
@@ -212,8 +209,7 @@ export default function AdminPage() {
       setUsers(users.map(user => 
         user.id === userId ? { ...user, role: newRole as any } : user
       ));
-    } catch (err) {
-      console.error('Error changing role:', err);
+    } catch {
       alert('Failed to change role');
     } finally {
       setProcessingId(null);
@@ -224,8 +220,8 @@ export default function AdminPage() {
     try {
       await signOut();
       router.push('/login');
-    } catch (err) {
-      console.error('Logout error:', err);
+    } catch {
+      // Logout failed silently
     }
   };
 

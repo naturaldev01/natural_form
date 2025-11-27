@@ -105,24 +105,18 @@ export default function DashboardPage() {
   }, [profile]);
 
   const checkAuth = async () => {
-    console.log('Dashboard: Checking auth...');
     try {
       const userData = await getCurrentUser();
-      console.log('Dashboard: userData:', userData);
       
       if (!userData || !userData.profile) {
-        console.log('Dashboard: No user or profile, redirecting to login');
         setLoading(false);
         router.push('/login');
         return;
       }
 
-      console.log('Dashboard: User profile:', userData.profile);
-
       // Check if user has permission to access dashboard
       const allowedRoles = ['sales', 'doctor', 'admin'];
       if (!hasRole(userData.profile, allowedRoles)) {
-        console.log('Dashboard: User role not allowed:', userData.profile.role);
         setAuthError('You do not have permission to access the dashboard.');
         setLoading(false);
         return;
@@ -130,7 +124,6 @@ export default function DashboardPage() {
 
       // Check if user is approved (for sales)
       if (userData.profile.role === 'sales' && !isApproved(userData.profile)) {
-        console.log('Dashboard: Sales user not approved');
         setAuthError('Your account is pending approval. Please wait for admin approval.');
         setLoading(false);
         return;
@@ -138,8 +131,7 @@ export default function DashboardPage() {
 
       setProfile(userData.profile);
       setLoading(false);
-    } catch (err) {
-      console.error('Auth check error:', err);
+    } catch {
       setLoading(false);
       router.push('/login');
     }
@@ -149,8 +141,8 @@ export default function DashboardPage() {
     try {
       await signOut();
       router.push('/login');
-    } catch (err) {
-      console.error('Logout error:', err);
+    } catch {
+      // Logout failed silently
     }
   };
 
@@ -164,8 +156,8 @@ export default function DashboardPage() {
 
       if (error) throw error;
       setMyConsultations(data || []);
-    } catch (err) {
-      console.error('Error fetching consultations:', err);
+    } catch {
+      // Failed to fetch consultations
     } finally {
       setLoadingConsultations(false);
     }
@@ -309,9 +301,8 @@ export default function DashboardPage() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch {
       setError('Failed to download PDF');
-      console.error(err);
     } finally {
       setDownloading(false);
     }
@@ -1003,8 +994,8 @@ async function drawImagePanel(ctx: CanvasRenderingContext2D, src: string, x: num
     const offsetY = innerY + (innerHeight - drawHeight) / 2;
     ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
     ctx.restore();
-  } catch (error) {
-    console.error('Failed to draw image', error);
+  } catch {
+    // Failed to draw image
   }
 }
 
@@ -1114,8 +1105,7 @@ async function getImageDataUrl(src: string) {
 
     imageDataCache.set(src, data.dataUrl);
     return data.dataUrl;
-  } catch (error) {
-    console.error('Image proxy failed', error);
+  } catch {
     return src;
   }
 }

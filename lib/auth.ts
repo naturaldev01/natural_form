@@ -55,38 +55,21 @@ export async function signUp(data: SignUpData) {
 
 // Sign in existing user
 export async function signIn(data: SignInData) {
-  console.log('Auth signIn: Starting for', data.email);
-  console.log('Auth signIn: Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL || 'using fallback');
-  
-  try {
-    console.log('Auth signIn: Calling signInWithPassword...');
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email: data.email,
+    password: data.password,
+  });
 
-    console.log('Auth signIn: signInWithPassword completed');
-    console.log('Auth signIn: Result:', { user: authData?.user?.email, error: authError?.message });
-
-    if (authError) {
-      console.error('Auth signIn: Auth error:', authError);
-      throw authError;
-    }
-
-    if (!authData.user) {
-      throw new Error('No user returned from sign in');
-    }
-
-    // Get user profile
-    console.log('Auth signIn: Getting profile for', authData.user.id);
-    const profile = await getUserProfile(authData.user.id);
-    console.log('Auth signIn: Profile result:', profile);
-    
-    return { user: authData.user, profile };
-  } catch (err) {
-    console.error('Auth signIn: Exception caught:', err);
-    throw err;
+  if (authError) {
+    throw authError;
   }
+
+  if (!authData.user) {
+    throw new Error('No user returned from sign in');
+  }
+
+  const profile = await getUserProfile(authData.user.id);
+  return { user: authData.user, profile };
 }
 
 // Sign out
@@ -97,36 +80,25 @@ export async function signOut() {
 
 // Get current user
 export async function getCurrentUser() {
-  console.log('Auth: Getting current user...');
   const { data: { user }, error } = await supabase.auth.getUser();
-  console.log('Auth: getUser result:', { user: user?.email, error });
   
   if (error || !user) {
-    console.log('Auth: No user found or error');
     return null;
   }
   
-  console.log('Auth: Fetching profile for user:', user.id);
   const profile = await getUserProfile(user.id);
-  console.log('Auth: Profile result:', profile);
-  
   return { user, profile };
 }
 
 // Get user profile
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
-  console.log('Auth: getUserProfile called with userId:', userId);
-  
   const { data, error } = await supabase
     .from('user_profiles')
     .select('*')
     .eq('id', userId)
     .single();
 
-  console.log('Auth: getUserProfile result:', { data, error });
-
   if (error) {
-    console.error('Error fetching profile:', error);
     return null;
   }
 
