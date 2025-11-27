@@ -513,10 +513,18 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       // Telefon numarasını temizle (+ işaretini kaldır)
       let cleanPhone = fullPhoneNumber.replace(/[^0-9]/g, '');
       
-      // WhatsApp web linkini aç
+      // WhatsApp web linkini aç (Safari uyumlu)
       const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-      window.open(whatsappUrl, '_blank');
-      console.log('WhatsApp link opened:', whatsappUrl);
+      console.log('WhatsApp link:', whatsappUrl);
+      
+      // Link elementi oluşturup tıkla - Safari dahil tüm tarayıcılarda çalışır
+      const link = document.createElement('a');
+      link.href = whatsappUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
       // onSuccess'i çağır
       onSuccess({
