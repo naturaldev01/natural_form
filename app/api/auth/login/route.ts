@@ -47,11 +47,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: authError.message }, { status: 401 });
     }
 
-    if (!authData.user) {
+    if (!authData.user || !authData.session) {
       return NextResponse.json({ error: 'No user returned' }, { status: 401 });
     }
 
-    const { data: profile, error: profileError } = await supabase
+    // Create a new client with the user's session to respect RLS
+    const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${authData.session.access_token}`,
+        },
+      },
+    });
+
+    const { data: profile, error: profileError } = await userSupabase
       .from('user_profiles')
       .select('*')
       .eq('id', authData.user.id)
