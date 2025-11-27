@@ -399,6 +399,9 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
     setSubmittingWhatsApp(true);
     console.log('=== Starting WhatsApp Send Process ===');
 
+    // Safari uyumluluğu için HEMEN boş pencere aç (kullanıcı etkileşimi anında)
+    const whatsappWindow = window.open('about:blank', '_blank');
+
     try {
       const fullPhoneNumber = `${contactInfo.countryCode}${contactInfo.phone.trim().replace(/\s/g, '')}`;
       const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
@@ -513,18 +516,17 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       // Telefon numarasını temizle (+ işaretini kaldır)
       let cleanPhone = fullPhoneNumber.replace(/[^0-9]/g, '');
       
-      // WhatsApp web linkini aç (Safari uyumlu)
+      // WhatsApp web linkini oluştur
       const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
       console.log('WhatsApp link:', whatsappUrl);
       
-      // Link elementi oluşturup tıkla - Safari dahil tüm tarayıcılarda çalışır
-      const link = document.createElement('a');
-      link.href = whatsappUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Önceden açılan pencereyi WhatsApp'a yönlendir (Safari uyumlu)
+      if (whatsappWindow) {
+        whatsappWindow.location.href = whatsappUrl;
+      } else {
+        // Popup engellenmiş, aynı sekmede aç
+        window.location.href = whatsappUrl;
+      }
 
       // onSuccess'i çağır
       onSuccess({
