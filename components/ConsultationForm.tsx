@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Upload, Loader2, Mail, X, CheckCircle } from 'lucide-react';
+import { Upload, Loader2, Mail, X, CheckCircle, MessageCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface FormData {
@@ -172,6 +172,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
     phone: '',
   });
   const [submittingContact, setSubmittingContact] = useState(false);
+  const [submittingWhatsApp, setSubmittingWhatsApp] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -389,6 +390,155 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       alert('Failed to send email. Please try again.');
     } finally {
       setSubmittingContact(false);
+    }
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (!isContactComplete() || !transformationResults) return;
+    
+    setSubmittingWhatsApp(true);
+    console.log('=== Starting WhatsApp Send Process ===');
+
+    try {
+      const fullPhoneNumber = `${contactInfo.countryCode}${contactInfo.phone.trim().replace(/\s/g, '')}`;
+      const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
+      
+      console.log('Contact Info:', {
+        firstName: contactInfo.firstName,
+        lastName: contactInfo.lastName,
+        email: contactInfo.email,
+        phone: fullPhoneNumber,
+        countryCode: contactInfo.countryCode,
+      });
+
+      // Önce veritabanına kaydet
+      console.log('Saving to database...');
+      for (const result of transformationResults) {
+        const { error: dbError } = await supabase.from('consultations').insert({
+          first_name: contactInfo.firstName.trim(),
+          last_name: contactInfo.lastName.trim(),
+          email: contactInfo.email.trim(),
+          phone: fullPhoneNumber,
+          treatment_type: formData.teethShade ? 'teeth' : 'hair',
+          original_image_url: result.originalUrl,
+          transformed_image_url: result.transformedUrl,
+        });
+
+        if (dbError) {
+          console.error('Database Error:', dbError);
+          throw dbError;
+        }
+      }
+      console.log('Database save successful');
+
+      // PDF oluştur
+      console.log('Generating PDF...');
+      const pdfBlob = await generatePdf(transformationResults[0], contactName, formData.treatmentType);
+      console.log('PDF generated, size:', pdfBlob.size);
+
+      // PDF'i Supabase'e yükle
+      console.log('Uploading PDF to Supabase...');
+      // Türkçe karakterleri ASCII'ye çevir ve özel karakterleri temizle
+      const sanitizedName = contactName
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Aksan işaretlerini kaldır
+        .replace(/ğ/g, 'g')
+        .replace(/Ğ/g, 'G')
+        .replace(/ü/g, 'u')
+        .replace(/Ü/g, 'U')
+        .replace(/ş/g, 's')
+        .replace(/Ş/g, 'S')
+        .replace(/ı/g, 'i')
+        .replace(/İ/g, 'I')
+        .replace(/ö/g, 'o')
+        .replace(/Ö/g, 'O')
+        .replace(/ç/g, 'c')
+        .replace(/Ç/g, 'C')
+        .replace(/[^a-zA-Z0-9\s-]/g, '') // Sadece harf, rakam, boşluk ve tire
+        .replace(/\s+/g, '-')
+        .toLowerCase();
+      
+      const pdfFileName = `whatsapp-pdfs/${Date.now()}-${sanitizedName || 'user'}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from('consultation-images')
+        .upload(pdfFileName, pdfBlob, {
+          contentType: 'application/pdf',
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error('PDF Upload Error:', uploadError);
+        throw uploadError;
+      }
+
+      const { data: { publicUrl: pdfUrl } } = supabase.storage
+        .from('consultation-images')
+        .getPublicUrl(pdfFileName);
+      
+      console.log('PDF uploaded, URL:', pdfUrl);
+
+      // URL'yi kısalt
+      console.log('Shortening URL...');
+      let shortUrl = pdfUrl;
+      try {
+        const tinyUrlResponse = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(pdfUrl)}`);
+        if (tinyUrlResponse.ok) {
+          shortUrl = await tinyUrlResponse.text();
+          console.log('Shortened URL:', shortUrl);
+        }
+      } catch (urlError) {
+        console.warn('URL shortening failed, using original URL:', urlError);
+      }
+
+      // WhatsApp mesajı oluştur ve wa.me linkini aç
+      console.log('Opening WhatsApp...');
+      const treatmentLabel = formData.treatmentType === 'teeth' ? 'smile design' : 'hair transformation';
+      const message = [
+        `Hello ${contactName}!`,
+        '',
+        'Thank you for visiting Natural Clinic Design Studio!',
+        '',
+        `Your personalized ${treatmentLabel} preview:`,
+        shortUrl,
+        '',
+        `We're excited to help you achieve your dream ${formData.treatmentType === 'teeth' ? 'smile' : 'look'}!`,
+        '',
+        'Contact us for a free consultation',
+        'www.natural.clinic',
+        '',
+        'Best regards,',
+        'Natural Clinic Team'
+      ].join('\n');
+
+      // Telefon numarasını temizle (+ işaretini kaldır)
+      let cleanPhone = fullPhoneNumber.replace(/[^0-9]/g, '');
+      
+      // WhatsApp web linkini aç
+      const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+      console.log('WhatsApp link opened:', whatsappUrl);
+
+      // onSuccess'i çağır
+      onSuccess({
+        results: transformationResults,
+        preferences:
+          formData.treatmentType === 'teeth'
+            ? {
+                teethShade: formData.teethShade,
+                teethStyle: formData.teethStyle,
+              }
+            : undefined,
+      });
+
+      setShowContactModal(false);
+      setSuccessMessage('Results sent via WhatsApp!');
+      setShowSuccessModal(true);
+      console.log('WhatsApp send process completed successfully!');
+    } catch (error) {
+      console.error('WhatsApp Send Error:', error);
+      alert(`Failed to send via WhatsApp: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setSubmittingWhatsApp(false);
     }
   };
 
@@ -722,23 +872,43 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
                   </div>
                 </div>
 
-                <button
-                  onClick={handleSendEmail}
-                  disabled={!isContactComplete() || submittingContact}
-                  className="w-full py-4 px-6 bg-gradient-to-r from-[#006069] to-[#004750] hover:from-[#004750] hover:to-[#003840] text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-3"
-                >
-                  {submittingContact ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="w-5 h-5" />
-                      Send via Email
-                    </>
-                  )}
-                </button>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={handleSendEmail}
+                    disabled={!isContactComplete() || submittingContact || submittingWhatsApp}
+                    className="py-4 px-4 bg-gradient-to-r from-[#006069] to-[#004750] hover:from-[#004750] hover:to-[#003840] text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {submittingContact ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-5 h-5" />
+                        Send via Email
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleSendWhatsApp}
+                    disabled={!isContactComplete() || submittingContact || submittingWhatsApp}
+                    className="py-4 px-4 bg-gradient-to-r from-[#25D366] to-[#128C7E] hover:from-[#128C7E] hover:to-[#075E54] text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {submittingWhatsApp ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Preparing...
+                      </>
+                    ) : (
+                      <>
+                        <MessageCircle className="w-5 h-5" />
+                        Send via WhatsApp
+                      </>
+                    )}
+                  </button>
+                </div>
 
                 <p className="text-xs text-gray-500 text-center">
                   Your information will be kept secure and used only for consultation purposes.

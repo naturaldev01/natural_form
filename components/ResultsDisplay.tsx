@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowRight, Mail, X, CheckCircle, Loader2 } from 'lucide-react';
+import { ArrowRight, Mail, X, CheckCircle, Loader2, MessageCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface Result {
@@ -46,6 +46,7 @@ export default function ResultsDisplay({
   });
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submittingWhatsApp, setSubmittingWhatsApp] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -58,6 +59,22 @@ export default function ResultsDisplay({
     );
   };
 
+  const saveToDatabase = async () => {
+    for (const result of results) {
+      const { error: dbError } = await supabase.from('consultations').insert({
+        first_name: contactInfo.firstName.trim(),
+        last_name: contactInfo.lastName.trim(),
+        email: contactInfo.email.trim(),
+        phone: contactInfo.phone.trim(),
+        treatment_type: preferences?.teethShade ? 'teeth' : 'hair',
+        original_image_url: result.originalUrl,
+        transformed_image_url: result.transformedUrl,
+      });
+
+      if (dbError) throw dbError;
+    }
+  };
+
   const handleSendEmail = async () => {
     if (!isContactComplete()) return;
     
@@ -65,19 +82,7 @@ export default function ResultsDisplay({
 
     try {
       // Veritabanına kaydet
-      for (const result of results) {
-        const { error: dbError } = await supabase.from('consultations').insert({
-          first_name: contactInfo.firstName.trim(),
-          last_name: contactInfo.lastName.trim(),
-          email: contactInfo.email.trim(),
-          phone: contactInfo.phone.trim(),
-          treatment_type: preferences?.teethShade ? 'teeth' : 'hair',
-          original_image_url: result.originalUrl,
-          transformed_image_url: result.transformedUrl,
-        });
-
-        if (dbError) throw dbError;
-      }
+      await saveToDatabase();
 
       // PDF oluştur ve mail gönder
       const pdfBlob = await generatePdf(results[0], `${contactInfo.firstName} ${contactInfo.lastName}`);
@@ -111,6 +116,78 @@ export default function ResultsDisplay({
       alert('Failed to send email. Please try again.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (!isContactComplete()) return;
+    
+    setSubmittingWhatsApp(true);
+
+    try {
+      // Veritabanına kaydet
+      await saveToDatabase();
+
+      // PDF oluştur
+      const pdfBlob = await generatePdf(results[0], `${contactInfo.firstName} ${contactInfo.lastName}`);
+      const pdfBase64 = await blobToBase64(pdfBlob);
+      const filename = `natural-clinic-${contactInfo.firstName.toLowerCase()}-${contactInfo.lastName.toLowerCase()}.pdf`;
+      const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
+      
+      // PDF'i Supabase Storage'a yükle
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('consultation-images')
+        .upload(`pdfs/${filename}`, await (await fetch(`data:application/pdf;base64,${pdfBase64}`)).blob(), {
+          contentType: 'application/pdf',
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new Error('Failed to upload PDF');
+      }
+
+      // Public URL al
+      const { data: urlData } = supabase.storage
+        .from('consultation-images')
+        .getPublicUrl(uploadData.path);
+
+      const pdfUrl = urlData.publicUrl;
+
+      // WhatsApp mesajı oluştur
+      const message = `Hello ${contactName}! 👋
+
+Thank you for visiting Natural Clinic Design Studio! ✨
+
+Here is your personalized smile transformation preview:
+${pdfUrl}
+
+We're excited to help you achieve your dream smile! 😊
+
+📞 Contact us for a free consultation
+🌐 www.natural.clinic
+
+Best regards,
+Natural Clinic Team`;
+
+      // Telefon numarasını temizle
+      let cleanPhone = contactInfo.phone.replace(/[^0-9+]/g, '');
+      if (cleanPhone.startsWith('+')) {
+        cleanPhone = cleanPhone.substring(1);
+      }
+
+      // WhatsApp web linkini aç
+      const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+
+      setIsUnlocked(true);
+      setSuccessMessage('WhatsApp opened! Send the message to share your results.');
+      setShowSuccessModal(true);
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Failed to prepare WhatsApp message. Please try again.');
+    } finally {
+      setSubmittingWhatsApp(false);
     }
   };
 
@@ -258,23 +335,43 @@ export default function ResultsDisplay({
               </div>
             </div>
 
-            <button
-              onClick={handleSendEmail}
-              disabled={!isContactComplete() || submitting}
-              className="w-full py-4 px-6 bg-gradient-to-r from-[#006069] to-[#004750] hover:from-[#004750] hover:to-[#003840] text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-3"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Mail className="w-5 h-5" />
-                  Send via Email
-                </>
-              )}
-            </button>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={handleSendEmail}
+                disabled={!isContactComplete() || submitting || submittingWhatsApp}
+                className="py-4 px-4 bg-gradient-to-r from-[#006069] to-[#004750] hover:from-[#004750] hover:to-[#003840] text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-5 h-5" />
+                    Send via Email
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleSendWhatsApp}
+                disabled={!isContactComplete() || submitting || submittingWhatsApp}
+                className="py-4 px-4 bg-gradient-to-r from-[#25D366] to-[#128C7E] hover:from-[#128C7E] hover:to-[#075E54] text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
+              >
+                {submittingWhatsApp ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Preparing...
+                  </>
+                ) : (
+                  <>
+                    <MessageCircle className="w-5 h-5" />
+                    Send via WhatsApp
+                  </>
+                )}
+              </button>
+            </div>
 
             <p className="text-xs text-gray-500 text-center">
               Your information will be kept secure and used only for consultation purposes.
