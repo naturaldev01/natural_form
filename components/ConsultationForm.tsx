@@ -402,6 +402,56 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
     // Safari uyumluluğu için HEMEN boş pencere aç (kullanıcı etkileşimi anında)
     const whatsappWindow = window.open('about:blank', '_blank');
 
+    // Loading sayfası göster
+    if (whatsappWindow) {
+      whatsappWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Redirecting to WhatsApp...</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+            }
+            .container {
+              text-align: center;
+              padding: 40px;
+            }
+            .spinner {
+              width: 50px;
+              height: 50px;
+              border: 4px solid rgba(255,255,255,0.3);
+              border-top-color: white;
+              border-radius: 50%;
+              animation: spin 1s linear infinite;
+              margin: 0 auto 24px;
+            }
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+            h1 { font-size: 24px; margin-bottom: 12px; }
+            p { font-size: 16px; opacity: 0.9; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="spinner"></div>
+            <h1>Redirecting to WhatsApp</h1>
+            <p>Please wait while we prepare your message...</p>
+          </div>
+        </body>
+        </html>
+      `);
+      whatsappWindow.document.close();
+    }
+
     try {
       const fullPhoneNumber = `${contactInfo.countryCode}${contactInfo.phone.trim().replace(/\s/g, '')}`;
       const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
