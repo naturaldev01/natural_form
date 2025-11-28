@@ -403,63 +403,13 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
     
     setSubmittingWhatsApp(true);
 
-    // Safari uyumluluğu için HEMEN boş pencere aç (kullanıcı etkileşimi anında)
-    const whatsappWindow = window.open('about:blank', '_blank');
-
-    // Loading sayfası göster
-    if (whatsappWindow) {
-      whatsappWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Redirecting to WhatsApp...</title>
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
-              min-height: 100vh;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-            }
-            .container {
-              text-align: center;
-              padding: 40px;
-            }
-            .spinner {
-              width: 50px;
-              height: 50px;
-              border: 4px solid rgba(255,255,255,0.3);
-              border-top-color: white;
-              border-radius: 50%;
-              animation: spin 1s linear infinite;
-              margin: 0 auto 24px;
-            }
-            @keyframes spin {
-              to { transform: rotate(360deg); }
-            }
-            h1 { font-size: 24px; margin-bottom: 12px; }
-            p { font-size: 16px; opacity: 0.9; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="spinner"></div>
-            <h1>Redirecting to WhatsApp</h1>
-            <p>Please wait while we prepare your message...</p>
-          </div>
-        </body>
-        </html>
-      `);
-      whatsappWindow.document.close();
-    }
-
     try {
-      const fullPhoneNumber = `${contactInfo.countryCode}${contactInfo.phone.trim().replace(/\s/g, '')}`;
+      // WhatsApp API için + işareti olmadan telefon numarası
+      const countryCodeClean = contactInfo.countryCode.replace('+', '');
+      const fullPhoneNumber = `${countryCodeClean}${contactInfo.phone.trim().replace(/\s/g, '')}`;
       const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
 
+      // Veritabanına kaydet
       for (const result of transformationResults) {
         const { error: dbError } = await supabase.from('consultations').insert({
           first_name: contactInfo.firstName.trim(),
@@ -476,11 +426,13 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
         }
       }
 
+      // PDF oluştur
       const pdfBlob = await generatePdf(transformationResults[0], contactName, formData.treatmentType);
+      
       // Türkçe karakterleri ASCII'ye çevir ve özel karakterleri temizle
       const sanitizedName = contactName
         .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '') // Aksan işaretlerini kaldır
+        .replace(/[\u0300-\u036f]/g, '')
         .replace(/ğ/g, 'g')
         .replace(/Ğ/g, 'G')
         .replace(/ü/g, 'u')
@@ -493,10 +445,11 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
         .replace(/Ö/g, 'O')
         .replace(/ç/g, 'c')
         .replace(/Ç/g, 'C')
-        .replace(/[^a-zA-Z0-9\s-]/g, '') // Sadece harf, rakam, boşluk ve tire
+        .replace(/[^a-zA-Z0-9\s-]/g, '')
         .replace(/\s+/g, '-')
         .toLowerCase();
       
+      // PDF'i Supabase'e yükle
       const pdfFileName = `whatsapp-pdfs/${Date.now()}-${sanitizedName || 'user'}.pdf`;
       const { error: uploadError } = await supabase.storage
         .from('consultation-images')
@@ -509,10 +462,12 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
         throw uploadError;
       }
 
+      // PDF URL'ini al
       const { data: { publicUrl: pdfUrl } } = supabase.storage
         .from('consultation-images')
         .getPublicUrl(pdfFileName);
 
+      // URL kısalt
       let shortUrl = pdfUrl;
       try {
         const tinyUrlResponse = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(pdfUrl)}`);
@@ -522,33 +477,25 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       } catch {
         // URL shortening failed, use original URL
       }
-      const treatmentLabel = formData.treatmentType === 'teeth' ? 'smile design' : 'hair transformation';
-      const message = [
-        `Hello ${contactName}!`,
-        '',
-        'Thank you for visiting Natural Clinic Design Studio!',
-        '',
-        `Your personalized ${treatmentLabel} preview:`,
-        shortUrl,
-        '',
-        `We're excited to help you achieve your dream ${formData.treatmentType === 'teeth' ? 'smile' : 'look'}!`,
-        '',
-        'Contact us for a free consultation',
-        'www.natural.clinic',
-        '',
-        'Best regards,',
-        'Natural Clinic Team'
-      ].join('\n');
 
-      const clinicWhatsApp = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '905370407687';
-      const whatsappUrl = `https://wa.me/${clinicWhatsApp}?text=${encodeURIComponent(message)}`;
-      
-      // Önceden açılan pencereyi WhatsApp'a yönlendir (Safari uyumlu)
-      if (whatsappWindow) {
-        whatsappWindow.location.href = whatsappUrl;
-      } else {
-        // Popup engellenmiş, aynı sekmede aç
-        window.location.href = whatsappUrl;
+      // WhatsApp Cloud API ile template mesajı gönder
+      const response = await fetch('/api/send-whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phoneNumber: fullPhoneNumber,
+          pdfUrl: shortUrl,
+          firstName: contactInfo.firstName.trim(),
+          lastName: contactInfo.lastName.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send WhatsApp message');
       }
 
       // onSuccess'i çağır
