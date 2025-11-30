@@ -72,11 +72,11 @@ export async function POST(request: NextRequest) {
     const response = await fetch(
       `${WHATSAPP_API_URL}/${phoneNumberId}/messages`,
       {
-        method: 'POST',
-        headers: {
+      method: 'POST',
+      headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
+        'Content-Type': 'application/json',
+      },
         body: JSON.stringify({
           messaging_product: 'whatsapp',
           to: formattedPhone,
@@ -120,8 +120,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
+    return NextResponse.json({ 
+      success: true, 
       messageId: data?.messages?.[0]?.id,
     });
 

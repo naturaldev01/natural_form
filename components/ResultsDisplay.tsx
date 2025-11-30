@@ -60,19 +60,19 @@ export default function ResultsDisplay({
   };
 
   const saveToDatabase = async () => {
-    for (const result of results) {
-      const { error: dbError } = await supabase.from('consultations').insert({
-        first_name: contactInfo.firstName.trim(),
-        last_name: contactInfo.lastName.trim(),
-        email: contactInfo.email.trim(),
-        phone: contactInfo.phone.trim(),
-        treatment_type: preferences?.teethShade ? 'teeth' : 'hair',
-        original_image_url: result.originalUrl,
-        transformed_image_url: result.transformedUrl,
-      });
+      for (const result of results) {
+        const { error: dbError } = await supabase.from('consultations').insert({
+          first_name: contactInfo.firstName.trim(),
+          last_name: contactInfo.lastName.trim(),
+          email: contactInfo.email.trim(),
+          phone: contactInfo.phone.trim(),
+          treatment_type: preferences?.teethShade ? 'teeth' : 'hair',
+          original_image_url: result.originalUrl,
+          transformed_image_url: result.transformedUrl,
+        });
 
-      if (dbError) throw dbError;
-    }
+        if (dbError) throw dbError;
+      }
   };
 
   const handleSendEmail = async () => {
@@ -336,23 +336,23 @@ Natural Clinic Team`;
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={handleSendEmail}
+            <button
+              onClick={handleSendEmail}
                 disabled={!isContactComplete() || submitting || submittingWhatsApp}
                 className="py-4 px-4 bg-gradient-to-r from-[#006069] to-[#004750] hover:from-[#004750] hover:to-[#003840] text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Mail className="w-5 h-5" />
-                    Send via Email
-                  </>
-                )}
-              </button>
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Mail className="w-5 h-5" />
+                  Send via Email
+                </>
+              )}
+            </button>
 
               <button
                 onClick={handleSendWhatsApp}

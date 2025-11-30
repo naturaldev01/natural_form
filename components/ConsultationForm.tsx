@@ -175,6 +175,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
   const [submittingWhatsApp, setSubmittingWhatsApp] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showResultPage, setShowResultPage] = useState(false);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -408,7 +409,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       const countryCodeClean = contactInfo.countryCode.replace('+', '');
       const fullPhoneNumber = `${countryCodeClean}${contactInfo.phone.trim().replace(/\s/g, '')}`;
       const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
-
+      
       // Veritabanına kaydet
       for (const result of transformationResults) {
         const { error: dbError } = await supabase.from('consultations').insert({
@@ -428,7 +429,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
 
       // PDF oluştur
       const pdfBlob = await generatePdf(transformationResults[0], contactName, formData.treatmentType);
-      
+
       // Türkçe karakterleri ASCII'ye çevir ve özel karakterleri temizle
       const sanitizedName = contactName
         .normalize('NFD')
@@ -466,7 +467,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       const { data: { publicUrl: pdfUrl } } = supabase.storage
         .from('consultation-images')
         .getPublicUrl(pdfFileName);
-
+      
       // URL kısalt
       let shortUrl = pdfUrl;
       try {
@@ -516,6 +517,161 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
     } catch (error) {
       alert(`Failed to send via WhatsApp: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
+      setSubmittingWhatsApp(false);
+    }
+  };
+
+  const handleSendBoth = async () => {
+    if (!isContactComplete() || !transformationResults) return;
+    
+    setSubmittingContact(true);
+    setSubmittingWhatsApp(true);
+
+    try {
+      // WhatsApp API için + işareti olmadan telefon numarası
+      const countryCodeClean = contactInfo.countryCode.replace('+', '');
+      const fullPhoneNumber = `${countryCodeClean}${contactInfo.phone.trim().replace(/\s/g, '')}`;
+      const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
+      
+      // Veritabanına kaydet
+      for (const result of transformationResults) {
+        const { error: dbError } = await supabase.from('consultations').insert({
+          first_name: contactInfo.firstName.trim(),
+          last_name: contactInfo.lastName.trim(),
+          email: contactInfo.email.trim(),
+          phone: fullPhoneNumber,
+          treatment_type: formData.teethShade ? 'teeth' : 'hair',
+          original_image_url: result.originalUrl,
+          transformed_image_url: result.transformedUrl,
+        });
+
+        if (dbError) {
+          throw dbError;
+        }
+      }
+
+      // PDF oluştur
+      const pdfBlob = await generatePdf(transformationResults[0], contactName, formData.treatmentType);
+      const pdfBase64 = await blobToBase64(pdfBlob);
+
+      // Türkçe karakterleri ASCII'ye çevir ve özel karakterleri temizle
+      const sanitizedName = contactName
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/ğ/g, 'g')
+        .replace(/Ğ/g, 'G')
+        .replace(/ü/g, 'u')
+        .replace(/Ü/g, 'U')
+        .replace(/ş/g, 's')
+        .replace(/Ş/g, 'S')
+        .replace(/ı/g, 'i')
+        .replace(/İ/g, 'I')
+        .replace(/ö/g, 'o')
+        .replace(/Ö/g, 'O')
+        .replace(/ç/g, 'c')
+        .replace(/Ç/g, 'C')
+        .replace(/[^a-zA-Z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .toLowerCase();
+      
+      const filename = `natural-clinic-${Date.now()}.pdf`;
+
+      // Email gönder
+      const emailPromise = fetch('/api/send-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pdfBase64,
+          filename,
+          toEmail: contactInfo.email,
+          contactName,
+        }),
+      });
+
+      // PDF'i Supabase'e yükle (WhatsApp için)
+      const pdfFileName = `whatsapp-pdfs/${Date.now()}-${sanitizedName || 'user'}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from('consultation-images')
+        .upload(pdfFileName, pdfBlob, {
+          contentType: 'application/pdf',
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // PDF URL'ini al
+      const { data: { publicUrl: pdfUrl } } = supabase.storage
+        .from('consultation-images')
+        .getPublicUrl(pdfFileName);
+      
+      // URL kısalt
+      let shortUrl = pdfUrl;
+      try {
+        const tinyUrlResponse = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(pdfUrl)}`);
+        if (tinyUrlResponse.ok) {
+          shortUrl = await tinyUrlResponse.text();
+        }
+      } catch {
+        // URL shortening failed, use original URL
+      }
+
+      // WhatsApp Cloud API ile template mesajı gönder
+      const whatsappPromise = fetch('/api/send-whatsapp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phoneNumber: fullPhoneNumber,
+          pdfUrl: shortUrl,
+          firstName: contactInfo.firstName.trim(),
+          lastName: contactInfo.lastName.trim(),
+        }),
+      });
+
+      // Her iki işlemi paralel olarak bekle
+      const [emailResponse, whatsappResponse] = await Promise.all([emailPromise, whatsappPromise]);
+
+      // Hataları kontrol et
+      const errors: string[] = [];
+      
+      if (!emailResponse.ok) {
+        const emailData = await emailResponse.json().catch(() => ({}));
+        errors.push(`Email: ${emailData.error || 'Failed to send'}`);
+      }
+
+      if (!whatsappResponse.ok) {
+        const whatsappData = await whatsappResponse.json().catch(() => ({}));
+        errors.push(`WhatsApp: ${whatsappData.error || 'Failed to send'}`);
+      }
+
+      if (errors.length > 0) {
+        throw new Error(errors.join(', '));
+      }
+
+      // onSuccess'i çağır
+      onSuccess({
+        results: transformationResults,
+        preferences:
+          formData.treatmentType === 'teeth'
+            ? {
+                teethShade: formData.teethShade,
+                teethStyle: formData.teethStyle,
+              }
+            : undefined,
+      });
+
+      setShowContactModal(false);
+      setSuccessMessage('Results sent via Email and WhatsApp!');
+      setShowSuccessModal(true);
+    } catch (error) {
+      alert(`Failed to send: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setSubmittingContact(false);
       setSubmittingWhatsApp(false);
     }
   };
@@ -850,39 +1006,28 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-600 text-center flex items-center justify-center gap-2">
+                    <Mail className="w-4 h-4 text-[#006069]" />
+                    <span>Your PDF will be sent via</span>
+                    <span className="font-semibold text-[#006069]">Email</span>
+                    <span>and</span>
+                    <MessageCircle className="w-4 h-4 text-[#25D366]" />
+                    <span className="font-semibold text-[#25D366]">WhatsApp</span>
+                  </p>
                   <button
-                    onClick={handleSendEmail}
+                    onClick={handleSendBoth}
                     disabled={!isContactComplete() || submittingContact || submittingWhatsApp}
-                    className="py-4 px-4 bg-gradient-to-r from-[#006069] to-[#004750] hover:from-[#004750] hover:to-[#003840] text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
+                    className="w-full py-4 px-6 bg-gradient-to-r from-[#006069] to-[#004750] hover:from-[#004750] hover:to-[#003840] text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
                   >
-                    {submittingContact ? (
+                    {(submittingContact || submittingWhatsApp) ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" />
                         Sending...
                       </>
                     ) : (
                       <>
-                        <Mail className="w-5 h-5" />
-                        Send via Email
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={handleSendWhatsApp}
-                    disabled={!isContactComplete() || submittingContact || submittingWhatsApp}
-                    className="py-4 px-4 bg-gradient-to-r from-[#25D366] to-[#128C7E] hover:from-[#128C7E] hover:to-[#075E54] text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
-                  >
-                    {submittingWhatsApp ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Preparing...
-                      </>
-                    ) : (
-                      <>
-                        <MessageCircle className="w-5 h-5" />
-                        Send via WhatsApp
+                        Send Results
                       </>
                     )}
                   </button>

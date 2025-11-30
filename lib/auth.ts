@@ -55,21 +55,21 @@ export async function signUp(data: SignUpData) {
 
 // Sign in existing user
 export async function signIn(data: SignInData) {
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email: data.email,
-    password: data.password,
-  });
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: data.email,
+      password: data.password,
+    });
 
-  if (authError) {
-    throw authError;
-  }
+    if (authError) {
+      throw authError;
+    }
 
-  if (!authData.user) {
-    throw new Error('No user returned from sign in');
-  }
+    if (!authData.user) {
+      throw new Error('No user returned from sign in');
+    }
 
-  const profile = await getUserProfile(authData.user.id);
-  return { user: authData.user, profile };
+    const profile = await getUserProfile(authData.user.id);
+    return { user: authData.user, profile };
 }
 
 // Sign out
