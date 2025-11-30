@@ -205,7 +205,7 @@ Natural Clinic Team`;
         <p className="text-gray-600">See the difference our treatment can make</p>
         {preferences?.teethShade && (
           <p className="text-sm text-gray-500 mt-2">
-            Preferred shade: <span className="font-semibold">{preferences.teethShade}</span>
+            Preferred color: <span className="font-semibold">{preferences.teethShade}</span>
             {preferences.teethStyle && (
               <>
                 {' '}• Smile style:{' '}

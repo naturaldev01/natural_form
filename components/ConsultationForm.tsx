@@ -676,8 +676,13 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
     }
   };
 
-  const handleCloseAndReset = () => {
+  const handleCloseAndShowResult = () => {
     setShowSuccessModal(false);
+    setShowResultPage(true);
+  };
+
+  const handleBackToForm = () => {
+    setShowResultPage(false);
     // Formu sıfırla
     setFormData({
       treatmentType: 'teeth',
@@ -1046,15 +1051,6 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       {showSuccessModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 space-y-6 animate-in zoom-in duration-300">
-            <div className="flex justify-end">
-              <button
-                onClick={handleCloseAndReset}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
             <div className="text-center space-y-4">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full">
                 <CheckCircle className="w-10 h-10 text-green-600" />
@@ -1070,11 +1066,140 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
             </div>
 
             <button
-              onClick={handleCloseAndReset}
+              onClick={handleCloseAndShowResult}
               className="w-full py-3 px-6 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-xl transition-all"
             >
-              Got it!
+              View Your Results
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Result Page - Before/After Comparison */}
+      {showResultPage && transformationResults && (
+        <div className="fixed inset-0 z-50 bg-white overflow-auto">
+          <div className="min-h-screen flex flex-col">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-[#006069] to-[#004750] text-white py-6 px-4">
+              <div className="max-w-6xl mx-auto flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <img 
+                    src="https://natural.clinic/wp-content/uploads/2023/07/Natural_logo_green-01.png.webp" 
+                    alt="Natural Clinic" 
+                    className="h-12 brightness-0 invert"
+                  />
+                  <div>
+                    <h1 className="text-2xl font-bold">Your Transformation</h1>
+                    <p className="text-white/80 text-sm">Natural Clinic Design Studio</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleBackToForm}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-all"
+                >
+                  <span>Start New</span>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 py-12 px-4">
+              <div className="max-w-6xl mx-auto">
+                {/* Patient Info */}
+                <div className="text-center mb-10">
+                  <p className="text-gray-500 text-sm uppercase tracking-wide mb-2">Results for</p>
+                  <h2 className="text-3xl font-bold text-gray-900">
+                    {contactInfo.firstName} {contactInfo.lastName}
+                  </h2>
+                  {formData.treatmentType === 'teeth' && (
+                    <p className="text-gray-600 mt-2">
+                      Color: <span className="font-semibold text-[#006069]">{formData.teethShade}</span>
+                      {' · '}
+                      Style: <span className="font-semibold text-[#006069]">{formData.teethStyle.replace(/([A-Z])/g, ' $1').trim()}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Before/After Grid */}
+                <div className="grid md:grid-cols-2 gap-8">
+                  {/* Before */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                        <span className="text-gray-600 font-bold">1</span>
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900">Before</h3>
+                    </div>
+                    <div className="relative rounded-2xl overflow-hidden shadow-xl border border-gray-200">
+                      <img
+                        src={transformationResults[0].originalUrl}
+                        alt="Before transformation"
+                        className="w-full h-auto"
+                      />
+                    </div>
+                  </div>
+
+                  {/* After */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#006069] flex items-center justify-center">
+                        <span className="text-white font-bold">2</span>
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900">After</h3>
+                    </div>
+                    <div className="relative rounded-2xl overflow-hidden shadow-xl border border-[#006069]/20">
+                      <img
+                        src={transformationResults[0].transformedUrl}
+                        alt="After transformation"
+                        className="w-full h-auto"
+                      />
+                      <div className="absolute top-4 right-4 bg-[#006069] text-white px-3 py-1 rounded-full text-sm font-semibold">
+                        AI Preview
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CTA Section */}
+                <div className="mt-12 text-center">
+                  <div className="bg-gradient-to-r from-[#006069]/10 to-[#004750]/10 rounded-2xl p-8 max-w-2xl mx-auto">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                      Ready to Make It Real?
+                    </h3>
+                    <p className="text-gray-600 mb-6">
+                      Our specialists are ready to discuss your personalized treatment plan.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                      <a
+                        href="https://natural.clinic/contact"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-6 py-3 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-xl transition-all shadow-lg"
+                      >
+                        Book Consultation
+                      </a>
+                      <button
+                        onClick={handleBackToForm}
+                        className="px-6 py-3 bg-white hover:bg-gray-50 text-[#006069] font-semibold rounded-xl transition-all border border-[#006069]"
+                      >
+                        Try Another Photo
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-gray-50 py-6 px-4 text-center">
+              <p className="text-gray-500 text-sm">
+                © {new Date().getFullYear()} Natural Clinic. All rights reserved.
+              </p>
+              <p className="text-gray-400 text-xs mt-1">
+                This is an AI-generated preview. Actual results may vary.
+              </p>
+            </div>
           </div>
         </div>
       )}
