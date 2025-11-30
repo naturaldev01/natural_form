@@ -467,17 +467,6 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       const { data: { publicUrl: pdfUrl } } = supabase.storage
         .from('consultation-images')
         .getPublicUrl(pdfFileName);
-      
-      // URL kısalt
-      let shortUrl = pdfUrl;
-      try {
-        const tinyUrlResponse = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(pdfUrl)}`);
-        if (tinyUrlResponse.ok) {
-          shortUrl = await tinyUrlResponse.text();
-        }
-      } catch {
-        // URL shortening failed, use original URL
-      }
 
       // WhatsApp Cloud API ile template mesajı gönder
       const response = await fetch('/api/send-whatsapp', {
@@ -487,7 +476,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
         },
         body: JSON.stringify({
           phoneNumber: fullPhoneNumber,
-          pdfUrl: shortUrl,
+          pdfUrl: pdfUrl,
           firstName: contactInfo.firstName.trim(),
           lastName: contactInfo.lastName.trim(),
         }),
@@ -607,17 +596,6 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       const { data: { publicUrl: pdfUrl } } = supabase.storage
         .from('consultation-images')
         .getPublicUrl(pdfFileName);
-      
-      // URL kısalt
-      let shortUrl = pdfUrl;
-      try {
-        const tinyUrlResponse = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(pdfUrl)}`);
-        if (tinyUrlResponse.ok) {
-          shortUrl = await tinyUrlResponse.text();
-        }
-      } catch {
-        // URL shortening failed, use original URL
-      }
 
       // WhatsApp Cloud API ile template mesajı gönder
       const whatsappPromise = fetch('/api/send-whatsapp', {
@@ -627,7 +605,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
         },
         body: JSON.stringify({
           phoneNumber: fullPhoneNumber,
-          pdfUrl: shortUrl,
+          pdfUrl: pdfUrl,
           firstName: contactInfo.firstName.trim(),
           lastName: contactInfo.lastName.trim(),
         }),
@@ -1020,22 +998,22 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
                     <MessageCircle className="w-4 h-4 text-[#25D366]" />
                     <span className="font-semibold text-[#25D366]">WhatsApp</span>
                   </p>
-                  <button
+                <button
                     onClick={handleSendBoth}
-                    disabled={!isContactComplete() || submittingContact || submittingWhatsApp}
+                  disabled={!isContactComplete() || submittingContact || submittingWhatsApp}
                     className="w-full py-4 px-6 bg-gradient-to-r from-[#006069] to-[#004750] hover:from-[#004750] hover:to-[#003840] text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
-                  >
+                >
                     {(submittingContact || submittingWhatsApp) ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
                         Send Results
-                      </>
-                    )}
-                  </button>
+                    </>
+                  )}
+                </button>
                 </div>
 
                 <p className="text-xs text-gray-500 text-center">
@@ -1315,41 +1293,44 @@ async function renderResultCanvas(result: TransformationResult, contactName: str
 
   await renderHeader(ctx, width);
 
-  // "Dear Name Surname" yazısı - resimlerin üzerinde, sol tarafa hizalı, Design Studio rengi
+  // "Dear Name Surname" yazısı
   ctx.textAlign = 'left';
   ctx.fillStyle = '#006069';
   ctx.font = '32px "Helvetica Neue", Arial, sans-serif';
-  ctx.fillText(`Dear ${contactName || 'Valued Guest'},`, 120, 320);
+  ctx.fillText(`Dear ${contactName || 'Valued Guest'},`, 80, 300);
   
   ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
   ctx.fillStyle = '#006069';
   const previewText = treatmentType === 'teeth' 
     ? 'Here is your personalized smile design preview'
     : 'Here is your personalized hair transformation preview';
-  ctx.fillText(previewText, 120, 360);
+  ctx.fillText(previewText, 80, 340);
 
-  const boxWidth = (width - 320) / 2;
-  const boxHeight = boxWidth * 0.78;
-  const boxY = 420;
-  const beforeX = 120;
-  const afterX = width - 120 - boxWidth;
+  // Resimler alt alta, geniş ve orantılı
+  const margin = 80;
+  const boxWidth = width - margin * 2; // Tam genişlik (960px)
+  const boxHeight = 480; // Her resim için yükseklik
+  const gap = 50; // Resimler arası boşluk
+  
+  const beforeY = 400;
+  const afterY = beforeY + boxHeight + gap + 30; // +30 for label
 
+  // Before label ve resim
   ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
   ctx.textAlign = 'left';
   ctx.fillStyle = '#0f5f64';
-  ctx.fillText('Before', beforeX, boxY - 20);
-  ctx.textAlign = 'right';
-  ctx.fillText('After', afterX + boxWidth, boxY - 20);
+  ctx.fillText('Before', margin, beforeY - 10);
+  await drawImagePanel(ctx, result.originalUrl, margin, beforeY, boxWidth, boxHeight);
 
-  await Promise.all([
-    drawImagePanel(ctx, result.originalUrl, beforeX, boxY, boxWidth, boxHeight),
-    drawImagePanel(ctx, result.transformedUrl, afterX, boxY, boxWidth, boxHeight),
-  ]);
+  // After label ve resim
+  ctx.fillText('After', margin, afterY - 10);
+  await drawImagePanel(ctx, result.transformedUrl, margin, afterY, boxWidth, boxHeight);
 
+  // Footer
   ctx.textAlign = 'center';
   ctx.font = '28px "Helvetica Neue", Arial, sans-serif';
   ctx.fillStyle = '#0f5f64';
-  ctx.fillText('www.natural.clinic', width / 2, height - 120);
+  ctx.fillText('www.natural.clinic', width / 2, height - 40);
 
   return canvas;
 }

@@ -112,8 +112,19 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json();
 
+    // Debug log - remove after testing
+    console.log('WhatsApp API Response:', JSON.stringify(data, null, 2));
+    console.log('Request payload:', JSON.stringify({
+      to: formattedPhone,
+      template: 'new_look_ready',
+      firstName,
+      lastName,
+      pdfUrl
+    }, null, 2));
+
     if (!response.ok) {
       const errorMessage = data?.error?.message || 'Failed to send WhatsApp message';
+      console.error('WhatsApp API Error:', errorMessage);
       return NextResponse.json(
         { error: errorMessage, details: data?.error },
         { status: response.status }
