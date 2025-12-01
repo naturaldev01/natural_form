@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { useRouter, usePathname } from 'next/navigation';
 import { Upload, Loader2, Mail, X, CheckCircle, MessageCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -101,7 +102,8 @@ interface ConsultationResultPayload {
 }
 
 interface ConsultationFormProps {
-  onSuccess: (data: ConsultationResultPayload) => void;
+  onSuccess?: (data: ConsultationResultPayload) => void;
+  initialTreatmentType?: 'teeth' | 'hair';
 }
 
 const TEETH_SHADES = [
@@ -168,9 +170,11 @@ const TEETH_STYLE_OPTIONS = TEETH_STYLES.map((style, index) => ({
 const LOGO_URL = 'https://natural.clinic/wp-content/uploads/2023/07/Natural_logo_green-01.png.webp';
 const imageDataCache = new Map<string, string>();
 
-export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
+export default function ConsultationForm({ onSuccess, initialTreatmentType = 'teeth' }: ConsultationFormProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [formData, setFormData] = useState<FormData>({
-    treatmentType: 'teeth',
+    treatmentType: initialTreatmentType,
     teethShade: '',
     teethStyle: '',
     images: [],
@@ -199,6 +203,20 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
   const [showResultPage, setShowResultPage] = useState(false);
   const selectedShade = TEETH_SHADES.find((shade) => shade.value === formData.teethShade);
   const selectedStyle = TEETH_STYLE_OPTIONS.find((style) => style.value === formData.teethStyle);
+  const navigateForTreatment = (type: 'teeth' | 'hair') => {
+    const targetPath = type === 'teeth' ? '/teeth' : '/hair';
+    if (pathname !== targetPath) {
+      router.push(targetPath);
+    }
+  };
+  const handleTreatmentSelect = (type: 'teeth' | 'hair') => {
+    setFormData((prev) => ({
+      ...prev,
+      treatmentType: type,
+      ...(type === 'hair' ? { teethShade: '', teethStyle: '' } : {}),
+    }));
+    navigateForTreatment(type);
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -401,7 +419,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       }
 
       // onSuccess'i çağır
-      onSuccess({
+      onSuccess?.({
         results: transformationResults,
         preferences:
           formData.treatmentType === 'teeth'
@@ -512,7 +530,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       }
 
       // onSuccess'i çağır
-      onSuccess({
+      onSuccess?.({
         results: transformationResults,
         preferences:
           formData.treatmentType === 'teeth'
@@ -655,7 +673,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
       }
 
       // onSuccess'i çağır
-      onSuccess({
+      onSuccess?.({
         results: transformationResults,
         preferences:
           formData.treatmentType === 'teeth'
@@ -686,7 +704,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
     setShowResultPage(false);
     // Formu sıfırla
     setFormData({
-      treatmentType: 'teeth',
+      treatmentType: initialTreatmentType,
       teethShade: '',
       teethStyle: '',
       images: [],
@@ -704,7 +722,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
         
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -713,7 +731,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
           <div className="flex gap-4">
             <button
               type="button"
-              onClick={() => setFormData({ ...formData, treatmentType: 'teeth' })}
+              onClick={() => handleTreatmentSelect('teeth')}
               className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all shadow-sm ${
                 formData.treatmentType === 'teeth'
                   ? 'bg-[#006069] text-white shadow-lg'
@@ -724,14 +742,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
             </button>
             <button
               type="button"
-              onClick={() =>
-                setFormData({
-                  ...formData,
-                  treatmentType: 'hair',
-                  teethShade: '',
-                  teethStyle: '',
-                })
-              }
+              onClick={() => handleTreatmentSelect('hair')}
               className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${
                 formData.treatmentType === 'hair'
                   ? 'bg-[#006069] text-white shadow-lg'
@@ -744,8 +755,8 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
         </div>
 
         {formData.treatmentType === 'teeth' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <div>
                   <p className="text-sm font-semibold text-gray-700">Preferred Color</p>
@@ -756,10 +767,10 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
                 <button
                   type="button"
                   onClick={() => setShowShadeGuide(true)}
-                  className="w-full text-left px-4 py-4 bg-white border-2 border-dashed border-gray-200 rounded-2xl hover:border-[#0f7c83] hover:bg-[#0f7c83]/5 transition flex items-center justify-between"
+                  className="w-full text-left px-4 py-3 bg-white border-2 border-dashed border-gray-200 rounded-2xl hover:border-[#0f7c83] hover:bg-[#0f7c83]/5 transition flex items-center justify-between"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full border border-gray-200 flex items-center justify-center bg-gradient-to-br from-white to-gray-100">
+                    <div className="h-11 w-11 rounded-full border border-gray-200 flex items-center justify-center bg-gradient-to-br from-white to-gray-100">
                       <span className="text-lg">🎨</span>
                     </div>
                     <div>
@@ -788,10 +799,10 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
                 <button
                   type="button"
                   onClick={() => setShowStyleGuide(true)}
-                  className="w-full text-left px-4 py-4 bg-white border-2 border-dashed border-gray-200 rounded-2xl hover:border-[#0f7c83] hover:bg-[#0f7c83]/5 transition flex items-center justify-between"
+                  className="w-full text-left px-4 py-3 bg-white border-2 border-dashed border-gray-200 rounded-2xl hover:border-[#0f7c83] hover:bg-[#0f7c83]/5 transition flex items-center justify-between"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full border border-gray-200 flex items-center justify-center bg-[#006069]/10 text-[#006069] text-lg font-semibold">
+                    <div className="h-11 w-11 rounded-full border border-gray-200 flex items-center justify-center bg-[#006069]/10 text-[#006069] text-lg font-semibold">
                       {selectedStyle ? selectedStyle.number : '🙂'}
                     </div>
                     <div>
@@ -831,7 +842,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
             />
             <label
               htmlFor="image"
-              className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-white hover:from-white hover:to-gray-50 transition-all shadow-inner"
+              className="flex flex-col items-center justify-center w-full h-56 border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-white hover:from-white hover:to-gray-50 transition-all shadow-inner"
             >
               {previews.length > 0 ? (
                 <div className="w-full h-full p-4 overflow-y-auto">
@@ -872,7 +883,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
           </div>
         </div>
 
-        <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-200 shadow-sm">
+        <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-200 shadow-sm">
           <input
             type="checkbox"
             id="consent"
@@ -896,7 +907,7 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
         <button
           type="submit"
           disabled={loading || !consentAccepted || formData.images.length === 0}
-          className="w-full py-4 px-6 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
+          className="w-full py-3 px-5 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
         >
           {loading ? (
             <>
@@ -1199,11 +1210,11 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
             </div>
 
             {/* Footer */}
-            <div className="bg-gray-50 py-6 px-4 text-center">
+            <div className="bg-gray-50 py-4 px-4 text-center">
               <p className="text-gray-500 text-sm">
                 © {new Date().getFullYear()} Natural Clinic. All rights reserved.
               </p>
-              <p className="text-gray-400 text-xs mt-1">
+              <p className="text-gray-400 text-xs mt-0.5">
                 This is an AI-generated preview. Actual results may vary.
               </p>
             </div>
@@ -1231,14 +1242,17 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
             <p className="text-sm text-gray-600">
               0M tones are brightest bleach colors, A/B are warm natural tones, C is grey, and D is a cool reddish-grey. Click any section on the chart to apply it instantly.
             </p>
-            <div className="overflow-auto max-h-[70vh] rounded-xl border border-gray-200">
-              <div className="relative">
+            <div className="rounded-xl border border-gray-200">
+              <div
+                className="relative w-full max-h-[65vh]"
+                style={{ aspectRatio: '774 / 430' }}
+              >
                 <Image
                   src="/assets/teeth_colors.jpeg"
                   alt="Full teeth shade guide"
-                  width={1000}
-                  height={600}
-                  className="w-full h-auto object-contain select-none"
+                  fill
+                  className="object-contain select-none"
+                  sizes="(max-width: 768px) 90vw, 800px"
                   priority
                 />
                 <div className="absolute inset-0 flex">
@@ -1296,14 +1310,17 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
             <p className="text-sm text-gray-600">
               Compare each tooth shape inspiration so you can pick the closest match for your transformation. Tap a smile directly on the collage to select it.
             </p>
-            <div className="overflow-auto max-h-[70vh] rounded-xl border border-gray-200">
-              <div className="relative">
+            <div className="rounded-xl border border-gray-200">
+              <div
+                className="relative w-full max-h-[75vh]"
+                style={{ aspectRatio: '803 / 975' }}
+              >
                 <Image
                   src="/assets/teeth_styles.jpeg"
                   alt="Smile style gallery"
-                  width={1000}
-                  height={1200}
-                  className="w-full h-auto object-contain select-none"
+                  fill
+                  className="object-contain select-none"
+                  sizes="(max-width: 768px) 90vw, 800px"
                   priority
                 />
                 <div className="absolute inset-0 grid grid-cols-2 grid-rows-6">
