@@ -144,6 +144,27 @@ const TEETH_STYLES = [
   label: value.replace(/([A-Z])/g, ' $1').replace(/Style$/, ' Style').trim(),
 }));
 
+const TEETH_STYLE_DESCRIPTIONS: Record<string, string> = {
+  AggressiveStyle: 'Sharp, angular tooth edges for a bold look.',
+  DominantStyle: 'Pronounced canines and a confident smile line.',
+  EnhancedStyle: 'Slightly longer fronts for a glamorous finish.',
+  FocusedStyle: 'Straight, uniform row that centers the smile.',
+  FunctionalStyle: 'Balanced bite aesthetics with gentle curves.',
+  HollywoodStyle: 'High-contrast, bright, and perfectly aligned.',
+  MatureStyle: 'Refined proportions inspired by natural aging.',
+  NaturalStyle: 'Soft variation in lengths for the most organic feel.',
+  OvalStyle: 'Rounded corners that flatter broader lip shapes.',
+  SoftenedStyle: 'Minimal angles with a velvety outline.',
+  VigorousStyle: 'Energetic contours with subtly tipped edges.',
+  YouthfulStyle: 'Small scallops that mimic freshly erupted teeth.',
+};
+
+const TEETH_STYLE_OPTIONS = TEETH_STYLES.map((style, index) => ({
+  ...style,
+  number: index + 1,
+  description: TEETH_STYLE_DESCRIPTIONS[style.value] || 'Inspired by the smile gallery reference.',
+}));
+
 const LOGO_URL = 'https://natural.clinic/wp-content/uploads/2023/07/Natural_logo_green-01.png.webp';
 const imageDataCache = new Map<string, string>();
 
@@ -176,6 +197,8 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showResultPage, setShowResultPage] = useState(false);
+  const selectedShade = TEETH_SHADES.find((shade) => shade.value === formData.teethShade);
+  const selectedStyle = TEETH_STYLE_OPTIONS.find((style) => style.value === formData.teethStyle);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -723,64 +746,70 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
         {formData.treatmentType === 'teeth' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="teethShade" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Preferred Color
-                </label>
-                <p className="text-xs text-gray-500 mb-3">
-                  Matches the VITA color guide from bleach (0M) to natural (A-D).
-                  <button
-                    type="button"
-                    onClick={() => setShowShadeGuide(true)}
-                    className="ml-2 text-[#006069] underline font-semibold"
-                  >
-                    View chart
-                  </button>
-                </p>
-                <select
-                  id="teethShade"
-                  required
-                  value={formData.teethShade}
-                  onChange={(e) => setFormData({ ...formData, teethShade: e.target.value })}
-                  className="w-full px-4 py-3 bg-white/90 border border-gray-200 rounded-2xl shadow-inner text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0f7c83] focus:border-[#0f7c83] transition-all"
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-700">Preferred Color</p>
+                  <p className="text-xs text-gray-500">
+                    Matches the VITA color guide from bleach (0M) to natural (A-D).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowShadeGuide(true)}
+                  className="w-full text-left px-4 py-4 bg-white border-2 border-dashed border-gray-200 rounded-2xl hover:border-[#0f7c83] hover:bg-[#0f7c83]/5 transition flex items-center justify-between"
                 >
-                  <option value="">Select color</option>
-                  {TEETH_SHADES.map((shade) => (
-                    <option key={shade.value} value={shade.value}>
-                      {shade.label}
-                    </option>
-                  ))}
-                </select>
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full border border-gray-200 flex items-center justify-center bg-gradient-to-br from-white to-gray-100">
+                      <span className="text-lg">🎨</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {selectedShade ? selectedShade.value : 'No color selected'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {selectedShade ? selectedShade.label.split('–')[1]?.trim() ?? selectedShade.label : 'Tap to open the palette'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold text-[#006069]">Edit</span>
+                </button>
+                <p className="text-xs text-gray-500">
+                  {formData.teethShade
+                    ? `Selected tone: ${selectedShade?.label ?? formData.teethShade}`
+                    : 'Select a shade from the full chart.'}
+                </p>
               </div>
 
-              <div>
-                <label htmlFor="teethStyle" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Smile Style
-                </label>
-                <p className="text-xs text-gray-500 mb-3">
-                  Choose the tooth shape inspiration that matches your goal.
-                  <button
-                    type="button"
-                    onClick={() => setShowStyleGuide(true)}
-                    className="ml-2 text-[#006069] underline font-semibold"
-                  >
-                    View gallery
-                  </button>
-                </p>
-                <select
-                  id="teethStyle"
-                  required
-                  value={formData.teethStyle}
-                  onChange={(e) => setFormData({ ...formData, teethStyle: e.target.value })}
-                  className="w-full px-4 py-3 bg-white/90 border border-gray-200 rounded-2xl shadow-inner text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0f7c83] focus:border-[#0f7c83] transition-all"
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-700">Smile Style</p>
+                  <p className="text-xs text-gray-500">Choose the tooth shape inspiration that matches your goal.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowStyleGuide(true)}
+                  className="w-full text-left px-4 py-4 bg-white border-2 border-dashed border-gray-200 rounded-2xl hover:border-[#0f7c83] hover:bg-[#0f7c83]/5 transition flex items-center justify-between"
                 >
-                  <option value="">Select style</option>
-                  {TEETH_STYLES.map((style) => (
-                    <option key={style.value} value={style.value}>
-                      {style.label}
-                    </option>
-                  ))}
-                </select>
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full border border-gray-200 flex items-center justify-center bg-[#006069]/10 text-[#006069] text-lg font-semibold">
+                      {selectedStyle ? selectedStyle.number : '🙂'}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {selectedStyle ? selectedStyle.label : 'No style selected'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {selectedStyle ? selectedStyle.description : 'Tap to open the gallery'}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold text-[#006069]">Edit</span>
+                </button>
+                <p className="text-xs text-gray-500">
+                  {formData.teethStyle
+                    ? `Selected style: ${selectedStyle?.label ?? formData.teethStyle}`
+                    : 'Select a smile inspiration from the gallery.'}
+                </p>
               </div>
             </div>
           </div>
@@ -1200,18 +1229,49 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
               </button>
             </div>
             <p className="text-sm text-gray-600">
-              0M tones are brightest bleach colors, A/B are warm natural tones, C is grey, and D is a cool reddish-grey.
+              0M tones are brightest bleach colors, A/B are warm natural tones, C is grey, and D is a cool reddish-grey. Click any section on the chart to apply it instantly.
             </p>
             <div className="overflow-auto max-h-[70vh] rounded-xl border border-gray-200">
-              <Image
-                src="/assets/teeth_colors.jpeg"
-                alt="Full teeth shade guide"
-                width={1000}
-                height={600}
-                className="w-full h-auto object-contain"
-                priority
-              />
+              <div className="relative">
+                <Image
+                  src="/assets/teeth_colors.jpeg"
+                  alt="Full teeth shade guide"
+                  width={1000}
+                  height={600}
+                  className="w-full h-auto object-contain select-none"
+                  priority
+                />
+                <div className="absolute inset-0 flex">
+                  {TEETH_SHADES.map((shade) => {
+                    const isSelected = formData.teethShade === shade.value;
+                    return (
+                      <button
+                        key={shade.value}
+                        type="button"
+                        aria-label={`Select shade ${shade.label}`}
+                        onClick={() => {
+                          setFormData((prev) => ({ ...prev, teethShade: shade.value }));
+                          setShowShadeGuide(false);
+                        }}
+                        className={`relative flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0f7c83] transition ${
+                          isSelected ? 'bg-white/10' : 'bg-transparent hover:bg-white/10'
+                        }`}
+                      >
+                        {isSelected && (
+                          <span className="absolute inset-1 border-2 border-[#00a1a9] rounded-md pointer-events-none" />
+                        )}
+                        <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white drop-shadow">
+                          {shade.value}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
+            <p className="text-xs text-[#006069] font-semibold">
+              Selected tone: {formData.teethShade || 'None'}
+            </p>
           </div>
         </div>
       )}
@@ -1234,18 +1294,50 @@ export default function ConsultationForm({ onSuccess }: ConsultationFormProps) {
               </button>
             </div>
             <p className="text-sm text-gray-600">
-              Compare each tooth shape inspiration so you can pick the closest match for your transformation.
+              Compare each tooth shape inspiration so you can pick the closest match for your transformation. Tap a smile directly on the collage to select it.
             </p>
             <div className="overflow-auto max-h-[70vh] rounded-xl border border-gray-200">
-              <Image
-                src="/assets/teeth_styles.jpeg"
-                alt="Smile style gallery"
-                width={1000}
-                height={1200}
-                className="w-full h-auto object-contain"
-                priority
-              />
+              <div className="relative">
+                <Image
+                  src="/assets/teeth_styles.jpeg"
+                  alt="Smile style gallery"
+                  width={1000}
+                  height={1200}
+                  className="w-full h-auto object-contain select-none"
+                  priority
+                />
+                <div className="absolute inset-0 grid grid-cols-2 grid-rows-6">
+                  {TEETH_STYLE_OPTIONS.map((style) => {
+                    const isSelected = formData.teethStyle === style.value;
+                    return (
+                      <button
+                        key={style.value}
+                        type="button"
+                        aria-label={`Select style ${style.label}`}
+                        onClick={() => {
+                          setFormData((prev) => ({ ...prev, teethStyle: style.value }));
+                          setShowStyleGuide(false);
+                        }}
+                        className={`relative w-full h-full border border-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0f7c83] transition ${
+                          isSelected ? 'bg-white/10 border-[#00a1a9]' : 'bg-transparent hover:bg-black/10'
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-2 left-2 flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-white ${
+                            isSelected ? 'bg-[#006069]' : 'bg-black/60'
+                          }`}
+                        >
+                          {style.number}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
+            <p className="text-xs text-[#006069] font-semibold">
+              Selected style: {formData.teethStyle ? TEETH_STYLE_OPTIONS.find((s) => s.value === formData.teethStyle)?.label : 'None'}
+            </p>
           </div>
         </div>
       )}
