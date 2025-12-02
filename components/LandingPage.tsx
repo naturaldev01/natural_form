@@ -13,11 +13,11 @@ export default function LandingPage({ initialTreatmentType = 'teeth' }: LandingP
     'inline-flex items-center gap-1 font-semibold transition-colors hover:text-[#004750]';
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 flex flex-col overflow-hidden">
-      <main className="flex-1 flex items-center justify-center px-4 py-4 sm:py-6">
-        <div className="w-full max-w-4xl space-y-4 sm:space-y-5">
+    <div className="min-h-screen bg-white text-gray-900 flex flex-col">
+      <main className="flex-1 w-full px-4 py-6 sm:py-10">
+        <div className="w-full max-w-4xl mx-auto space-y-5">
           <div className="text-center space-y-3">
-            <div className="flex justify-center items-start gap-3">
+            <div className="flex justify-center items-start gap-3 flex-wrap">
               <Image
                 src="https://natural.clinic/wp-content/uploads/2023/07/Natural_logo_green-01.png.webp"
                 alt="Natural Clinic logo"
@@ -61,8 +61,8 @@ export default function LandingPage({ initialTreatmentType = 'teeth' }: LandingP
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 md:p-8 shadow-2xl border border-gray-100 relative overflow-hidden max-h-[calc(100svh-170px)]">
-            <div className="h-full overflow-y-auto pr-1">
+          <div className="bg-white rounded-2xl p-4 md:p-8 shadow-2xl border border-gray-100">
+            <div className="h-full">
               <ConsultationForm initialTreatmentType={initialTreatmentType} />
             </div>
           </div>

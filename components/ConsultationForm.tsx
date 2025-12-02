@@ -1099,7 +1099,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
           <div className="min-h-screen flex flex-col">
             {/* Header */}
             <div className="bg-gradient-to-r from-[#006069] to-[#004750] text-white py-6 px-4">
-              <div className="max-w-6xl mx-auto flex items-center justify-between">
+              <div className="max-w-6xl mx-auto flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
                   <img 
                     src="https://natural.clinic/wp-content/uploads/2023/07/Natural_logo_green-01.png.webp" 
@@ -1111,13 +1111,15 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                     <p className="text-white/80 text-sm">Natural Clinic Design Studio</p>
                   </div>
                 </div>
-                <button
-                  onClick={handleBackToForm}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-all"
-                >
-                  <span>Start New</span>
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleBackToForm}
+                    className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-all"
+                  >
+                    <span>Start New</span>
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
             </div>
 
