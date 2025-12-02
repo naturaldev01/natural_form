@@ -20,6 +20,69 @@ const prompts: Record<string, string> = {
     "Transform this image to show fuller, healthier, more voluminous hair. Make the hair look professionally styled and treated. Keep the person's face and features exactly the same, only improve the hair to look thicker, healthier, and more vibrant. Maintain realistic lighting and natural appearance.",
 };
 
+async function generateWithGeminiModel(
+  modelName: string,
+  prompt: string,
+  mimeType: string,
+  base64Image: string,
+  apiKey: string
+) {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: base64Image,
+                },
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.4,
+          topK: 32,
+          topP: 1,
+          maxOutputTokens: 4096,
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const details = await response.text();
+    return { success: false as const, error: details || `HTTP ${response.status}` };
+  }
+
+  const geminiData = await response.json();
+  const candidate = geminiData.candidates?.[0];
+
+  if (!candidate) {
+    return { success: false as const, error: 'No candidates returned' };
+  }
+
+  const parts = candidate.content?.parts || [];
+  for (const part of parts) {
+    if (part.inline_data?.data) {
+      return { success: true as const, data: part.inline_data.data };
+    }
+    if (part.inlineData?.data) {
+      return { success: true as const, data: part.inlineData.data };
+    }
+  }
+
+  return { success: false as const, error: 'No inline image data in response' };
+}
+
 const teethShadeDescriptions: Record<string, string> = {
   '0M1': 'the ultra bright 0M1 bleach shade',
   '0M2': 'the vibrant 0M2 bleach shade',
@@ -179,69 +242,35 @@ export async function POST(req: Request) {
       }
     }
 
-    // Use Gemini 2.0 Flash Exp (Nano Banana) for image generation
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: prompt },
-                {
-                  inline_data: {
-                    mime_type: mimeType,
-                    data: base64Image,
-                  },
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.4,
-            topK: 32,
-            topP: 1,
-            maxOutputTokens: 4096,
-          },
-        }),
-      }
-    );
+    const geminiModels = ['gemini-3-pro-image-preview', 'gemini-2.5-flash-image'];
+    let transformedImageData: string | null = null;
+    const attemptErrors: string[] = [];
 
-    if (!geminiResponse.ok) {
-      const details = await geminiResponse.text();
+    for (const modelName of geminiModels) {
+      const result = await generateWithGeminiModel(
+        modelName,
+        prompt,
+        mimeType,
+        base64Image,
+        geminiApiKey
+      );
+
+      if (result.success) {
+        transformedImageData = result.data;
+        break;
+      }
+
+      attemptErrors.push(`${modelName}: ${result.error}`);
+    }
+
+    if (!transformedImageData) {
       return buildResponse(
         {
           error: 'Failed to process image with Gemini API',
-          details,
+          details: attemptErrors.join(' | '),
         },
         500
       );
-    }
-
-    const geminiData = await geminiResponse.json();
-    const candidate = geminiData.candidates?.[0];
-
-    if (!candidate) {
-      return buildResponse({ error: 'No response from Gemini API' }, 500);
-    }
-
-    const parts = candidate.content?.parts || [];
-    let transformedImageData: string | null = null;
-
-    for (const part of parts) {
-      if (part.inline_data?.data) {
-        transformedImageData = part.inline_data.data;
-        break;
-      }
-
-      if (part.inlineData?.data) {
-        transformedImageData = part.inlineData.data;
-        break;
-      }
     }
 
     if (!transformedImageData) {
