@@ -167,9 +167,55 @@ const TEETH_STYLE_OPTIONS = TEETH_STYLES.map((style, index) => ({
   description: TEETH_STYLE_DESCRIPTIONS[style.value] || 'Inspired by the smile gallery reference.',
 }));
 
+type ShadeSegment = { start: number; end: number };
+const TEETH_SHADE_SEGMENTS: Record<'desktop' | 'mobile', ShadeSegment[]> = {
+  desktop: [
+    { start: 0.010769, end: 0.053846 },
+    { start: 0.063077, end: 0.106923 },
+    { start: 0.112308, end: 0.156923 },
+    { start: 0.167692, end: 0.21 },
+    { start: 0.217692, end: 0.261538 },
+    { start: 0.271538, end: 0.314615 },
+    { start: 0.323077, end: 0.366154 },
+    { start: 0.373077, end: 0.416923 },
+    { start: 0.427692, end: 0.47 },
+    { start: 0.476154, end: 0.52 },
+    { start: 0.53, end: 0.573077 },
+    { start: 0.582308, end: 0.626154 },
+    { start: 0.634615, end: 0.675385 },
+    { start: 0.686923, end: 0.73 },
+    { start: 0.739231, end: 0.781538 },
+    { start: 0.789231, end: 0.832308 },
+    { start: 0.843077, end: 0.883077 },
+    { start: 0.892308, end: 0.936154 },
+    { start: 0.941538, end: 0.984615 },
+  ],
+  mobile: [
+    { start: 0.015385, end: 0.058462 },
+    { start: 0.068462, end: 0.110769 },
+    { start: 0.118462, end: 0.16 },
+    { start: 0.172308, end: 0.214615 },
+    { start: 0.223846, end: 0.265385 },
+    { start: 0.276923, end: 0.318462 },
+    { start: 0.328462, end: 0.37 },
+    { start: 0.378462, end: 0.419231 },
+    { start: 0.431538, end: 0.473077 },
+    { start: 0.481538, end: 0.523846 },
+    { start: 0.534615, end: 0.576154 },
+    { start: 0.587692, end: 0.628462 },
+    { start: 0.638462, end: 0.678462 },
+    { start: 0.692308, end: 0.733077 },
+    { start: 0.743846, end: 0.785385 },
+    { start: 0.793846, end: 0.836154 },
+    { start: 0.847692, end: 0.886154 },
+    { start: 0.897692, end: 0.938462 },
+    { start: 0.946154, end: 0.987692 },
+  ],
+};
+
 const TEETH_SHADE_GUIDE_PLACEHOLDERS = {
   mobile: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMCAxMCI+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMDUwNTA1Ii8+PC9zdmc+',
-  desktop: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMCAxMCI+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMDUwNTA1Ii8+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjYiIGZpbGw9IiMwZjBmMGYiLz48L3N2Zz4=',
+  desktop: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMCAxMCI+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMDUwNTA1Ii8+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjMiIGZpbGw9IiMwZjBmMGYiLz48L3N2Zz4=',
 };
 
 const LOGO_URL = 'https://natural.clinic/wp-content/uploads/2023/07/Natural_logo_green-01.png.webp';
@@ -738,8 +784,9 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
   const renderShadeGuideVariant = (variant: 'mobile' | 'desktop') => {
     const isMobileVariant = variant === 'mobile';
-    const imageSrc = isMobileVariant ? '/assets/teeth_mobile.png' : '/assets/teeth_web.png';
-    const aspectRatio = isMobileVariant ? '7487 / 13695' : '13670 / 7442';
+    const imageSrc = isMobileVariant ? '/assets/teeth_mobile_v1.png' : '/assets/teeth_web_v1.png';
+    const aspectRatio = isMobileVariant ? '7485 / 12985' : '12970 / 7442';
+    const segments = TEETH_SHADE_SEGMENTS[isMobileVariant ? 'mobile' : 'desktop'];
 
     return (
       <div
@@ -757,9 +804,26 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
           quality={60}
           priority
         />
-        <div className={`absolute inset-0 flex ${isMobileVariant ? 'flex-col' : ''}`}>
-          {TEETH_SHADES.map((shade) => {
+        <div className="absolute inset-0">
+          {segments.map((segment, index) => {
+            const shade = TEETH_SHADES[index];
             const isSelected = formData.teethShade === shade.value;
+            const spanSize = (segment.end - segment.start) * 100;
+            const sharedClasses = 'absolute focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0f7c83] transition';
+            const style = isMobileVariant
+              ? {
+                  top: `${segment.start * 100}%`,
+                  height: `${spanSize}%`,
+                  left: 0,
+                  right: 0,
+                }
+              : {
+                  left: `${segment.start * 100}%`,
+                  width: `${spanSize}%`,
+                  top: 0,
+                  bottom: 0,
+                };
+
             return (
               <button
                 key={shade.value}
@@ -769,26 +833,29 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                   setFormData((prev) => ({ ...prev, teethShade: shade.value }));
                   setShowShadeGuide(false);
                 }}
-                className={`relative flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0f7c83] transition ${
-                  isSelected ? 'bg-white/10' : 'bg-transparent hover:bg-white/10'
+                style={style}
+                className={`${sharedClasses} ${
+                  isSelected ? 'bg-white/5' : 'bg-transparent hover:bg-white/5'
                 }`}
               >
                 {isSelected && (
                   <span className="absolute inset-1 border-2 border-[#00a1a9] rounded-md pointer-events-none" />
                 )}
-                <span
-                  className={
-                    isMobileVariant
-                      ? 'sr-only'
-                      : 'absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white drop-shadow'
-                  }
-                >
-                  {shade.value}
-                </span>
               </button>
             );
           })}
         </div>
+        {!isMobileVariant && selectedShade && (
+          <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-4 py-1 text-xs font-semibold text-white shadow-lg backdrop-blur">
+            {selectedShade.value}
+            {selectedShade.label.includes('–') && (
+              <span className="text-[11px] font-normal text-gray-200">
+                {' '}
+                {selectedShade.label.split('–')[1]?.trim()}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     );
   };
