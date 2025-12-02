@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { Upload, Loader2, Mail, X, CheckCircle, MessageCircle } from 'lucide-react';
@@ -167,6 +167,11 @@ const TEETH_STYLE_OPTIONS = TEETH_STYLES.map((style, index) => ({
   description: TEETH_STYLE_DESCRIPTIONS[style.value] || 'Inspired by the smile gallery reference.',
 }));
 
+const TEETH_SHADE_GUIDE_PLACEHOLDERS = {
+  mobile: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMCAxMCI+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMDUwNTA1Ii8+PC9zdmc+',
+  desktop: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMCAxMCI+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMDUwNTA1Ii8+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjYiIGZpbGw9IiMwZjBmMGYiLz48L3N2Zz4=',
+};
+
 const LOGO_URL = 'https://natural.clinic/wp-content/uploads/2023/07/Natural_logo_green-01.png.webp';
 const imageDataCache = new Map<string, string>();
 
@@ -201,6 +206,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showResultPage, setShowResultPage] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const selectedShade = TEETH_SHADES.find((shade) => shade.value === formData.teethShade);
   const selectedStyle = TEETH_STYLE_OPTIONS.find((style) => style.value === formData.teethStyle);
   const navigateForTreatment = (type: 'teeth' | 'hair') => {
@@ -217,6 +223,16 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
     }));
     navigateForTreatment(type);
   };
+
+  useEffect(() => {
+    const handleViewportChange = () => {
+      setIsMobileViewport(window.innerWidth < 768);
+    };
+
+    handleViewportChange();
+    window.addEventListener('resize', handleViewportChange);
+    return () => window.removeEventListener('resize', handleViewportChange);
+  }, []);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -718,6 +734,63 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       countryCode: '+90',
       phone: '',
     });
+  };
+
+  const renderShadeGuideVariant = (variant: 'mobile' | 'desktop') => {
+    const isMobileVariant = variant === 'mobile';
+    const imageSrc = isMobileVariant ? '/assets/teeth_mobile.png' : '/assets/teeth_web.png';
+    const aspectRatio = isMobileVariant ? '7487 / 13695' : '13670 / 7442';
+
+    return (
+      <div
+        className="relative w-full max-h-[70vh]"
+        style={{ aspectRatio }}
+      >
+        <Image
+          src={imageSrc}
+          alt={isMobileVariant ? 'Teeth shade guide mobile layout' : 'Teeth shade guide desktop layout'}
+          fill
+          className="object-contain select-none"
+          sizes={isMobileVariant ? '100vw' : '(max-width: 1200px) 90vw, 1200px'}
+          placeholder="blur"
+          blurDataURL={isMobileVariant ? TEETH_SHADE_GUIDE_PLACEHOLDERS.mobile : TEETH_SHADE_GUIDE_PLACEHOLDERS.desktop}
+          quality={60}
+          priority
+        />
+        <div className={`absolute inset-0 flex ${isMobileVariant ? 'flex-col' : ''}`}>
+          {TEETH_SHADES.map((shade) => {
+            const isSelected = formData.teethShade === shade.value;
+            return (
+              <button
+                key={shade.value}
+                type="button"
+                aria-label={`Select shade ${shade.label}`}
+                onClick={() => {
+                  setFormData((prev) => ({ ...prev, teethShade: shade.value }));
+                  setShowShadeGuide(false);
+                }}
+                className={`relative flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0f7c83] transition ${
+                  isSelected ? 'bg-white/10' : 'bg-transparent hover:bg-white/10'
+                }`}
+              >
+                {isSelected && (
+                  <span className="absolute inset-1 border-2 border-[#00a1a9] rounded-md pointer-events-none" />
+                )}
+                <span
+                  className={
+                    isMobileVariant
+                      ? 'sr-only'
+                      : 'absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white drop-shadow'
+                  }
+                >
+                  {shade.value}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -1245,45 +1318,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
               0M tones are brightest bleach colors, A/B are warm natural tones, C is grey, and D is a cool reddish-grey. Click any section on the chart to apply it instantly.
             </p>
             <div className="rounded-xl border border-gray-200">
-              <div
-                className="relative w-full max-h-[65vh]"
-                style={{ aspectRatio: '774 / 430' }}
-              >
-                <Image
-                  src="/assets/teeth_colors.jpeg"
-                  alt="Full teeth shade guide"
-                  fill
-                  className="object-contain select-none"
-                  sizes="(max-width: 768px) 90vw, 800px"
-                  priority
-                />
-                <div className="absolute inset-0 flex">
-                  {TEETH_SHADES.map((shade) => {
-                    const isSelected = formData.teethShade === shade.value;
-                    return (
-                      <button
-                        key={shade.value}
-                        type="button"
-                        aria-label={`Select shade ${shade.label}`}
-                        onClick={() => {
-                          setFormData((prev) => ({ ...prev, teethShade: shade.value }));
-                          setShowShadeGuide(false);
-                        }}
-                        className={`relative flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0f7c83] transition ${
-                          isSelected ? 'bg-white/10' : 'bg-transparent hover:bg-white/10'
-                        }`}
-                      >
-                        {isSelected && (
-                          <span className="absolute inset-1 border-2 border-[#00a1a9] rounded-md pointer-events-none" />
-                        )}
-                        <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white drop-shadow">
-                          {shade.value}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              {renderShadeGuideVariant(isMobileViewport ? 'mobile' : 'desktop')}
             </div>
             <p className="text-xs text-[#006069] font-semibold">
               Selected tone: {formData.teethShade || 'None'}
