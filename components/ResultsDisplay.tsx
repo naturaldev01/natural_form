@@ -30,7 +30,7 @@ interface ResultsDisplayProps {
   onUnlock?: (info: ContactInfo) => void;
 }
 
-const LOGO_URL = 'https://natural.clinic/wp-content/uploads/2023/07/Natural_logo_green-01.png.webp';
+const LOGO_URL = '/assets/logo.png';
 const imageDataCache = new Map<string, string>();
 
 export default function ResultsDisplay({ 
@@ -467,39 +467,53 @@ async function renderResultCanvas(result: { originalUrl: string; transformedUrl:
     throw new Error('Unable to render PDF preview');
   }
 
-  ctx.fillStyle = '#ffffff';
+  const backgroundColor = '#006069';
+  const frameColor = '#0b5b64';
+  const textColor = '#ffffff';
+
+  ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, width, height);
 
   await renderHeader(ctx, width);
 
   ctx.textAlign = 'left';
-  ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
-  ctx.fillText('Personal Design For:', 120, 260);
-  ctx.font = 'italic 30px "Helvetica Neue", Arial, sans-serif';
-  ctx.fillText(contactName || 'Valued Guest', 120, 305);
+  ctx.fillStyle = textColor;
+  ctx.font = '32px "Helvetica Neue", Arial, sans-serif';
+  const greeting = contactName?.trim()
+    ? `Dear ${contactName},`
+    : 'Dear Guest,';
+  ctx.fillText(greeting, 80, 280);
 
-  const boxWidth = (width - 320) / 2;
-  const boxHeight = boxWidth * 0.78;
-  const boxY = 420;
-  const beforeX = 120;
-  const afterX = width - 120 - boxWidth;
+  ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
+  ctx.fillText('Here is your personalized smile design preview', 80, 320);
+
+  const margin = 80;
+  const gap = 60;
+  const panelWidth = (width - margin * 2 - gap) / 2;
+  const panelHeight = 900;
+  const panelY = 430;
 
   ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#0f5f64';
-  ctx.fillText('Before', beforeX, boxY - 20);
-  ctx.textAlign = 'right';
-  ctx.fillText('After', afterX + boxWidth, boxY - 20);
+  ctx.fillStyle = textColor;
+  ctx.fillText('Before', margin, panelY - 20);
+  await drawImagePanel(ctx, result.originalUrl, margin, panelY, panelWidth, panelHeight, frameColor);
 
-  await Promise.all([
-    drawImagePanel(ctx, result.originalUrl, beforeX, boxY, boxWidth, boxHeight),
-    drawImagePanel(ctx, result.transformedUrl, afterX, boxY, boxWidth, boxHeight),
-  ]);
+  ctx.fillText('After', margin + panelWidth + gap, panelY - 20);
+  await drawImagePanel(
+    ctx,
+    result.transformedUrl,
+    margin + panelWidth + gap,
+    panelY,
+    panelWidth,
+    panelHeight,
+    frameColor
+  );
 
   ctx.textAlign = 'center';
   ctx.font = '28px "Helvetica Neue", Arial, sans-serif';
-  ctx.fillStyle = '#0f5f64';
-  ctx.fillText('www.natural.clinic', width / 2, height - 120);
+  ctx.fillStyle = textColor;
+  ctx.fillText('www.natural.clinic', width / 2, height - 40);
 
   return canvas;
 }
@@ -519,7 +533,7 @@ async function renderHeader(ctx: CanvasRenderingContext2D, width: number) {
   } catch {
     ctx.textAlign = 'center';
     ctx.font = 'bold 48px "Helvetica Neue", Arial, sans-serif';
-    ctx.fillStyle = '#0f5f64';
+    ctx.fillStyle = '#ffffff';
     ctx.fillText('Natural Clinic', width / 2, 140);
   }
 }
@@ -530,9 +544,10 @@ async function drawImagePanel(
   x: number,
   y: number,
   width: number,
-  height: number
+  height: number,
+  frameColor: string
 ) {
-  drawRoundedRect(ctx, x, y, width, height, 24, '#e6ecec');
+  drawRoundedRect(ctx, x, y, width, height, 24, frameColor);
 
   const innerX = x + 16;
   const innerY = y + 16;
@@ -540,7 +555,7 @@ async function drawImagePanel(
   const innerHeight = height - 32;
 
   if (!src) {
-    ctx.fillStyle = '#f7f9fa';
+    ctx.fillStyle = '#0d4a51';
     roundedRectPath(ctx, innerX, innerY, innerWidth, innerHeight, 16);
     ctx.fill();
     return;
@@ -548,7 +563,7 @@ async function drawImagePanel(
 
   try {
     const image = await loadImageElement(src);
-    ctx.fillStyle = '#f7f9fa';
+    ctx.fillStyle = '#ffffff';
     roundedRectPath(ctx, innerX, innerY, innerWidth, innerHeight, 16);
     ctx.fill();
     ctx.save();

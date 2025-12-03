@@ -1,0 +1,8 @@
+
+new_look_ready_tr -> Turkish
+new_look_ready_fr -> French
+new_look_ready_rs -> Russian
+new_look_ready_ar -> Arabian
+new_look_ready_es -> Spanish
+new_look_ready_it -> Italian
+new_look_ready_ch -> Chinese (CHN)

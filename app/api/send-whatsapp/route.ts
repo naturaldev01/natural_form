@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getWhatsappTemplateConfig } from '@/lib/i18n/languageTemplates';
 
 // Validation
 const PHONE_REGEX = /^\+?[1-9]\d{6,14}$/;
@@ -6,7 +7,7 @@ const PHONE_REGEX = /^\+?[1-9]\d{6,14}$/;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { phoneNumber, pdfUrl, firstName, lastName } = body;
+    const { phoneNumber, pdfUrl, firstName, lastName, language } = body;
 
     // Get environment variables
     const accessToken = process.env.NEXT_PUBLIC_WP_TOKEN;
@@ -68,6 +69,11 @@ export async function POST(request: NextRequest) {
       ? cleanPhone.substring(1) 
       : cleanPhone;
 
+    const templateLanguage =
+      typeof language === 'string' ? language : undefined;
+    const { name: templateName, locale } =
+      getWhatsappTemplateConfig(templateLanguage);
+
     // Send template message via WhatsApp Cloud API
     const response = await fetch(
       `${WHATSAPP_API_URL}/${phoneNumberId}/messages`,
@@ -82,8 +88,8 @@ export async function POST(request: NextRequest) {
           to: formattedPhone,
           type: 'template',
           template: {
-            name: 'new_look_ready',
-            language: { code: 'en_US' },
+            name: templateName,
+            language: { code: locale },
             components: [
               {
                 type: 'header',
@@ -114,13 +120,21 @@ export async function POST(request: NextRequest) {
 
     // Debug log - remove after testing
     console.log('WhatsApp API Response:', JSON.stringify(data, null, 2));
-    console.log('Request payload:', JSON.stringify({
-      to: formattedPhone,
-      template: 'new_look_ready',
-      firstName,
-      lastName,
-      pdfUrl
-    }, null, 2));
+    console.log(
+      'Request payload:',
+      JSON.stringify(
+        {
+          to: formattedPhone,
+          template: templateName,
+          locale,
+          firstName,
+          lastName,
+          pdfUrl,
+        },
+        null,
+        2
+      )
+    );
 
     if (!response.ok) {
       const errorMessage = data?.error?.message || 'Failed to send WhatsApp message';

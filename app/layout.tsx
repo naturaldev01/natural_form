@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { I18nProvider } from '@/lib/i18n';
 
 const APP_TITLE = 'Natural Clinic AI Smile & Hair Preview Studio - Natural Clinic';
 const APP_DESCRIPTION = 'Upload your photos and preview professional teeth whitening or hair makeover simulations powered by Natural Clinic’s AI design studio.';
@@ -33,7 +34,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <I18nProvider>{children}</I18nProvider>
+      </body>
     </html>
   );
 }

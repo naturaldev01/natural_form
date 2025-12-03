@@ -1,19 +1,21 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
 import ConsultationForm from '@/components/ConsultationForm';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { useI18n } from '@/lib/i18n';
 
 interface LandingPageProps {
   initialTreatmentType?: 'teeth' | 'hair';
 }
 
 export default function LandingPage({ initialTreatmentType = 'teeth' }: LandingPageProps) {
-  const linkBase =
-    'inline-flex items-center gap-1 font-semibold transition-colors hover:text-[#004750]';
-
+  const { t } = useI18n();
   return (
     <div className="min-h-screen bg-white text-gray-900 flex flex-col">
+      <div className="w-full max-w-4xl mx-auto px-4 pt-4 flex justify-end">
+        <LanguageSwitcher />
+      </div>
       <main className="flex-1 w-full px-4 py-6 sm:py-10">
         <div className="w-full max-w-4xl mx-auto space-y-5">
           <div className="text-center space-y-3">
@@ -27,38 +29,15 @@ export default function LandingPage({ initialTreatmentType = 'teeth' }: LandingP
               />
               <div className="flex flex-col items-start pt-2">
                 <span className="text-[#006069] text-lg font-semibold tracking-wide">
-                  Design Studio
+                  {t('hero.badge')}
                 </span>
               </div>
             </div>
             <div>
-              <p className="text-xl text-gray-800">Discover Your Perfect Transformation</p>
-              <p className="text-gray-600 mt-1">
-                See how our treatments can enhance your natural beauty
-              </p>
+              <p className="text-2xl text-gray-800">{t('hero.title')}</p>
+              <p className="text-gray-600 text-xs">{t('hero.subtitle')}</p>
             </div>
-            <p className="text-xs text-gray-500">
-              Explore dedicated experiences:{' '}
-              <Link
-                href="/teeth"
-                prefetch={false}
-                className={`${linkBase} ${
-                  initialTreatmentType === 'teeth' ? 'text-[#006069]' : 'text-gray-600'
-                }`}
-              >
-                Teeth Preview
-              </Link>
-              <span className="mx-1 text-gray-400">/</span>
-              <Link
-                href="/hair"
-                prefetch={false}
-                className={`${linkBase} ${
-                  initialTreatmentType === 'hair' ? 'text-[#006069]' : 'text-gray-600'
-                }`}
-              >
-                Hair Preview
-              </Link>
-            </p>
+           
           </div>
 
           <div className="bg-white rounded-2xl p-4 md:p-8 shadow-2xl border border-gray-100">
@@ -68,7 +47,7 @@ export default function LandingPage({ initialTreatmentType = 'teeth' }: LandingP
           </div>
 
           <div className="text-center text-gray-500 text-xs sm:text-sm">
-            <p>Your privacy is important to us. All images are securely stored and processed.</p>
+            <p>{t('hero.privacy')}</p>
           </div>
         </div>
       </main>

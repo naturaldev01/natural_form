@@ -65,7 +65,7 @@ const TEETH_STYLES = [
   label: value.replace(/([A-Z])/g, ' $1').replace(/Style$/, ' Style').trim(),
 }));
 
-const LOGO_URL = 'https://natural.clinic/wp-content/uploads/2023/07/Natural_logo_green-01.png.webp';
+const LOGO_URL = '/assets/logo.png';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -894,44 +894,53 @@ async function renderResultCanvas(result: TransformationResult, contactName: str
 
   if (!ctx) throw new Error('Unable to render PDF');
 
-  ctx.fillStyle = '#ffffff';
+  const backgroundColor = '#006069';
+  const frameColor = '#0b5b64';
+  const textColor = '#ffffff';
+
+  ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, width, height);
 
   await renderHeader(ctx, width);
 
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#006069';
+  ctx.fillStyle = textColor;
   ctx.font = '32px "Helvetica Neue", Arial, sans-serif';
-  ctx.fillText(`Dear ${contactName || 'Valued Patient'},`, 120, 320);
-  
-  ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
-  const previewText = treatmentType === 'teeth' 
-    ? 'Here is your personalized smile design preview'
-    : 'Here is your personalized hair transformation preview';
-  ctx.fillText(previewText, 120, 360);
+  const greeting = contactName?.trim() ? `Dear ${contactName},` : 'Dear Guest,';
+  ctx.fillText(greeting, 80, 280);
 
-  const boxWidth = (width - 320) / 2;
-  const boxHeight = boxWidth * 0.78;
-  const boxY = 420;
-  const beforeX = 120;
-  const afterX = width - 120 - boxWidth;
+  ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
+  const previewText =
+    treatmentType === 'hair'
+      ? 'Here is your personalized hair transformation preview'
+      : 'Here is your personalized smile design preview';
+  ctx.fillText(previewText, 80, 320);
+
+  ctx.fillStyle = textColor;
+  const margin = 80;
+  const gap = 60;
+  const panelWidth = (width - margin * 2 - gap) / 2;
+  const panelHeight = 900;
+  const panelY = 420;
+  const beforeX = margin;
+  const afterX = margin + panelWidth + gap;
 
   ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#0f5f64';
-  ctx.fillText('Before', beforeX, boxY - 20);
+  ctx.fillStyle = textColor;
+  ctx.fillText('Before', beforeX, panelY - 20);
   ctx.textAlign = 'right';
-  ctx.fillText('After', afterX + boxWidth, boxY - 20);
+  ctx.fillText('After', afterX + panelWidth, panelY - 20);
 
   await Promise.all([
-    drawImagePanel(ctx, result.originalUrl, beforeX, boxY, boxWidth, boxHeight),
-    drawImagePanel(ctx, result.transformedUrl, afterX, boxY, boxWidth, boxHeight),
+    drawImagePanel(ctx, result.originalUrl, beforeX, panelY, panelWidth, panelHeight, frameColor),
+    drawImagePanel(ctx, result.transformedUrl, afterX, panelY, panelWidth, panelHeight, frameColor),
   ]);
 
   ctx.textAlign = 'center';
   ctx.font = '28px "Helvetica Neue", Arial, sans-serif';
-  ctx.fillStyle = '#0f5f64';
-  ctx.fillText('www.natural.clinic', width / 2, height - 120);
+  ctx.fillStyle = textColor;
+  ctx.fillText('www.natural.clinic', width / 2, height - 40);
 
   return canvas;
 }
@@ -953,18 +962,18 @@ async function renderHeader(ctx: CanvasRenderingContext2D, width: number) {
     
     ctx.textAlign = 'left';
     ctx.font = 'bold 24px "Helvetica Neue", Arial, sans-serif';
-    ctx.fillStyle = '#006069';
-    ctx.fillText('Design Studio', startX + logoWidth + 15, topMargin + 35);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('Design Studio', startX + logoWidth + 15, topMargin + 40);
   } catch {
     ctx.textAlign = 'center';
     ctx.font = 'bold 48px "Helvetica Neue", Arial, sans-serif';
-    ctx.fillStyle = '#0f5f64';
+    ctx.fillStyle = '#ffffff';
     ctx.fillText('Natural Clinic', width / 2, 140);
   }
 }
 
-async function drawImagePanel(ctx: CanvasRenderingContext2D, src: string, x: number, y: number, width: number, height: number) {
-  drawRoundedRect(ctx, x, y, width, height, 24, '#e6ecec');
+async function drawImagePanel(ctx: CanvasRenderingContext2D, src: string, x: number, y: number, width: number, height: number, frameColor: string) {
+  drawRoundedRect(ctx, x, y, width, height, 24, frameColor);
 
   const innerX = x + 16;
   const innerY = y + 16;
@@ -972,7 +981,7 @@ async function drawImagePanel(ctx: CanvasRenderingContext2D, src: string, x: num
   const innerHeight = height - 32;
 
   if (!src) {
-    ctx.fillStyle = '#f7f9fa';
+    ctx.fillStyle = '#0d4a51';
     roundedRectPath(ctx, innerX, innerY, innerWidth, innerHeight, 16);
     ctx.fill();
     return;
@@ -980,7 +989,7 @@ async function drawImagePanel(ctx: CanvasRenderingContext2D, src: string, x: num
 
   try {
     const image = await loadImageElement(src);
-    ctx.fillStyle = '#f7f9fa';
+    ctx.fillStyle = '#ffffff';
     roundedRectPath(ctx, innerX, innerY, innerWidth, innerHeight, 16);
     ctx.fill();
     ctx.save();

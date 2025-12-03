@@ -164,16 +164,36 @@ async function sendMail({
 
 function readResponse(socket: tls.TLSSocket) {
   return new Promise<string>((resolve, reject) => {
-    const onData = (data: Buffer) => {
+    let buffer = '';
+    const cleanup = () => {
+      socket.removeListener('data', onData);
       socket.removeListener('error', onError);
-      resolve(data.toString());
+      clearTimeout(timeoutId);
+    };
+    const onData = (data: Buffer) => {
+      buffer += data.toString();
+      const lines = buffer.split(/\r?\n/).filter((line) => line.length > 0);
+      if (lines.length === 0) {
+        return;
+      }
+      const lastLine = lines[lines.length - 1];
+      const match = lastLine.match(/^(\d{3})([ -])/);
+      if (match && match[2] === ' ') {
+        cleanup();
+        resolve(buffer);
+      }
     };
     const onError = (err: Error) => {
-      socket.removeListener('data', onData);
+      cleanup();
       reject(err);
     };
-    socket.once('data', onData);
-    socket.once('error', onError);
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error('SMTP response timeout'));
+    }, 10000);
+
+    socket.on('data', onData);
+    socket.on('error', onError);
   });
 }
 

@@ -1,10 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type SVGProps } from 'react';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
-import { Upload, Loader2, Mail, X, CheckCircle, MessageCircle } from 'lucide-react';
+import { Upload, Loader2, Mail, X, CheckCircle, MessageCircle, Headphones } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useI18n } from '@/lib/i18n';
+
+const WHATSAPP_NUMBER = '902129190555';
+const WHATSAPP_MESSAGE =
+  "Hi, I'm interested in treatments in Natural Clinic, and I would like to learn more.";
+const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+  WHATSAPP_MESSAGE
+)}`;
+
+const WhatsAppIcon = (props: SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true" {...props}>
+    <path d="M16 3c-7.18 0-13 5.69-13 12.68 0 2.23.6 4.33 1.76 6.18L3 29l7.35-1.92A13.5 13.5 0 0 0 16 28c7.18 0 13-5.69 13-12.68C29 8.69 23.18 3 16 3zm0 22.95a10.8 10.8 0 0 1-4.9-1.16l-.36-.19-4.27 1.12 1.14-4.05-.22-.34A10 10 0 0 1 5.74 15.7c0-5.56 4.6-10.08 10.26-10.08 5.66 0 10.26 4.52 10.26 10.08 0 5.56-4.6 10.25-10.26 10.25zm6.02-7.64c-.33-.17-1.94-.94-2.23-1.05-.3-.11-.52-.17-.74.16-.22.33-.85 1.05-1.03 1.27-.19.22-.37.25-.7.08-.33-.16-1.36-.51-2.58-1.63-.95-.85-1.59-1.88-1.78-2.2-.19-.33-.02-.51.14-.68.14-.14.33-.37.48-.54.16-.19.22-.33.33-.54.11-.22.05-.4-.03-.56-.08-.16-.72-1.74-.99-2.39-.27-.65-.54-.55-.73-.56l-.62-.01c-.22 0-.56.08-.85.4-.29.32-1.12 1.08-1.12 2.63 0 1.55 1.15 3.05 1.31 3.26.16.22 2.22 3.36 5.39 4.71a9.7 9.7 0 0 0 1.8.65c.74.24 1.42.2 1.96.13.6-.09 1.92-.78 2.18-1.53.27-.75.27-1.39.19-1.54-.08-.14-.3-.22-.63-.39z" />
+  </svg>
+);
 
 interface FormData {
   treatmentType: 'teeth' | 'hair';
@@ -218,12 +232,13 @@ const TEETH_SHADE_GUIDE_PLACEHOLDERS = {
   desktop: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMCAxMCI+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMDUwNTA1Ii8+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjMiIGZpbGw9IiMwZjBmMGYiLz48L3N2Zz4=',
 };
 
-const LOGO_URL = 'https://natural.clinic/wp-content/uploads/2023/07/Natural_logo_green-01.png.webp';
+const LOGO_URL = '/assets/logo.png';
 const imageDataCache = new Map<string, string>();
 
 export default function ConsultationForm({ onSuccess, initialTreatmentType = 'teeth' }: ConsultationFormProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { t, language } = useI18n();
   const [formData, setFormData] = useState<FormData>({
     treatmentType: initialTreatmentType,
     teethShade: '',
@@ -296,7 +311,11 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
     });
 
     if (invalidFiles.length > 0) {
-      setError(`Some images are too large (max 5MB): ${invalidFiles.join(', ')}`);
+      setError(
+        t('errors.imageTooLarge', {
+          files: invalidFiles.join(', '),
+        })
+      );
     }
 
     if (validFiles.length > 0) {
@@ -330,12 +349,12 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
   const submitForm = async () => {
     if (!consentAccepted) {
-      setError('Please accept the consent to proceed');
+      setError(t('errors.missingConsent'));
       return;
     }
 
     if (formData.images.length === 0) {
-      setError('Please upload at least one image');
+      setError(t('errors.missingImages'));
       return;
     }
 
@@ -343,7 +362,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       formData.treatmentType === 'teeth' &&
       (!formData.teethShade || !formData.teethStyle)
     ) {
-      setError('Please choose a teeth color and smile style');
+      setError(t('errors.teethPreferences'));
       return;
     }
 
@@ -408,7 +427,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       setShowContactModal(true);
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('errors.generic'));
     } finally {
       setLoading(false);
     }
@@ -457,7 +476,12 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       }
 
       // PDF oluştur ve mail gönder
-      const pdfBlob = await generatePdf(transformationResults[0], `${contactInfo.firstName} ${contactInfo.lastName}`, formData.treatmentType);
+      const pdfBlob = await generatePdf(
+        transformationResults[0],
+        `${contactInfo.firstName} ${contactInfo.lastName}`,
+        formData.treatmentType,
+        t
+      );
       const pdfBase64 = await blobToBase64(pdfBlob);
       const filename = `natural-clinic-${Date.now()}.pdf`;
       const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
@@ -472,12 +496,16 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
           filename,
           toEmail: contactInfo.email,
           contactName,
+          language,
         }),
       });
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to send email');
+        throw new Error(
+          data.error ||
+            t('notifications.sendFailed', { message: t('contactModal.emailLabel') })
+        );
       }
 
       // onSuccess'i çağır
@@ -493,10 +521,12 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       });
 
       setShowContactModal(false);
-      setSuccessMessage('Results sent to your email!');
+      setSuccessMessage(t('success.message'));
       setShowSuccessModal(true);
     } catch (error) {
-      alert('Failed to send email. Please try again.');
+      const details =
+        error instanceof Error ? error.message : t('contactModal.emailLabel');
+      alert(`${t('notifications.sendFailed', { message: details })} ${t('notifications.tryAgain')}`);
     } finally {
       setSubmittingContact(false);
     }
@@ -531,7 +561,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       }
 
       // PDF oluştur
-      const pdfBlob = await generatePdf(transformationResults[0], contactName, formData.treatmentType);
+      const pdfBlob = await generatePdf(transformationResults[0], contactName, formData.treatmentType, t);
 
       // Türkçe karakterleri ASCII'ye çevir ve özel karakterleri temizle
       const sanitizedName = contactName
@@ -582,13 +612,17 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
           pdfUrl: pdfUrl,
           firstName: contactInfo.firstName.trim(),
           lastName: contactInfo.lastName.trim(),
+          language,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send WhatsApp message');
+        throw new Error(
+          data.error ||
+            t('notifications.sendFailed', { message: t('contactModal.whatsappLabel') })
+        );
       }
 
       // onSuccess'i çağır
@@ -604,10 +638,12 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       });
 
       setShowContactModal(false);
-      setSuccessMessage('Results sent via WhatsApp!');
+      setSuccessMessage(t('success.message'));
       setShowSuccessModal(true);
     } catch (error) {
-      alert(`Failed to send via WhatsApp: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const details =
+        error instanceof Error ? error.message : t('contactModal.whatsappLabel');
+      alert(`${t('notifications.sendFailed', { message: details })} ${t('notifications.tryAgain')}`);
     } finally {
       setSubmittingWhatsApp(false);
     }
@@ -643,7 +679,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       }
 
       // PDF oluştur
-      const pdfBlob = await generatePdf(transformationResults[0], contactName, formData.treatmentType);
+      const pdfBlob = await generatePdf(transformationResults[0], contactName, formData.treatmentType, t);
       const pdfBase64 = await blobToBase64(pdfBlob);
 
       // Türkçe karakterleri ASCII'ye çevir ve özel karakterleri temizle
@@ -711,6 +747,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
           pdfUrl: pdfUrl,
           firstName: contactInfo.firstName.trim(),
           lastName: contactInfo.lastName.trim(),
+          language,
         }),
       });
 
@@ -722,12 +759,22 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       
       if (!emailResponse.ok) {
         const emailData = await emailResponse.json().catch(() => ({}));
-        errors.push(`Email: ${emailData.error || 'Failed to send'}`);
+        errors.push(
+          t('notifications.channelFailed', {
+            channel: t('contactModal.emailLabel'),
+            message: emailData.error || t('notifications.tryAgain'),
+          })
+        );
       }
 
       if (!whatsappResponse.ok) {
         const whatsappData = await whatsappResponse.json().catch(() => ({}));
-        errors.push(`WhatsApp: ${whatsappData.error || 'Failed to send'}`);
+        errors.push(
+          t('notifications.channelFailed', {
+            channel: t('contactModal.whatsappLabel'),
+            message: whatsappData.error || t('notifications.tryAgain'),
+          })
+        );
       }
 
       if (errors.length > 0) {
@@ -747,10 +794,12 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       });
 
       setShowContactModal(false);
-      setSuccessMessage('Results sent via Email and WhatsApp!');
+      setSuccessMessage(t('success.message'));
       setShowSuccessModal(true);
     } catch (error) {
-      alert(`Failed to send: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const details =
+        error instanceof Error ? error.message : t('notifications.tryAgain');
+      alert(`${t('notifications.sendFailed', { message: details })} ${t('notifications.tryAgain')}`);
     } finally {
       setSubmittingContact(false);
       setSubmittingWhatsApp(false);
@@ -795,7 +844,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       >
         <Image
           src={imageSrc}
-          alt={isMobileVariant ? 'Teeth shade guide mobile layout' : 'Teeth shade guide desktop layout'}
+          alt={t('shade.title')}
           fill
           className="object-contain select-none"
           sizes={isMobileVariant ? '100vw' : '(max-width: 1200px) 90vw, 1200px'}
@@ -828,7 +877,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
               <button
                 key={shade.value}
                 type="button"
-                aria-label={`Select shade ${shade.label}`}
+                aria-label={t('aria.selectShade', { value: shade.label })}
                 onClick={() => {
                   setFormData((prev) => ({ ...prev, teethShade: shade.value }));
                   setShowShadeGuide(false);
@@ -866,7 +915,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 mb-3">
-            Treatment Type
+           
           </label>
           <div className="flex gap-4">
             <button
@@ -878,7 +927,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              Teeth
+              {t('form.treatment.teeth')}
             </button>
             <button
               type="button"
@@ -889,7 +938,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              Hair
+              {t('form.treatment.hair')}
             </button>
           </div>
         </div>
@@ -899,10 +948,8 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <div>
-                  <p className="text-sm font-semibold text-gray-700">Preferred Color</p>
-                  <p className="text-xs text-gray-500">
-                    Matches the VITA color guide from bleach (0M) to natural (A-D).
-                  </p>
+                  <p className="text-sm font-semibold text-gray-700"></p>
+                  <p className="text-xs text-gray-500"></p>
                 </div>
                 <button
                   type="button"
@@ -915,26 +962,30 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-gray-900">
-                        {selectedShade ? selectedShade.value : 'No color selected'}
+                        {selectedShade ? selectedShade.value : t('form.color.placeholderTitle')}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {selectedShade ? selectedShade.label.split('–')[1]?.trim() ?? selectedShade.label : 'Tap to open the palette'}
+                        {selectedShade
+                          ? selectedShade.label.split('–')[1]?.trim() ?? selectedShade.label
+                          : ''}
                       </p>
                     </div>
                   </div>
-                  <span className="text-sm font-semibold text-[#006069]">Edit</span>
+                  <span className="text-sm font-semibold text-[#006069]">{t('form.color.edit')}</span>
                 </button>
                 <p className="text-xs text-gray-500">
                   {formData.teethShade
-                    ? `Selected tone: ${selectedShade?.label ?? formData.teethShade}`
-                    : 'Select a shade from the full chart.'}
+                    ? t('form.color.selectedTone', {
+                        value: selectedShade?.label ?? formData.teethShade,
+                      })
+                    : ''}
                 </p>
               </div>
 
               <div className="space-y-3">
                 <div>
-                  <p className="text-sm font-semibold text-gray-700">Smile Style</p>
-                  <p className="text-xs text-gray-500">Choose the tooth shape inspiration that matches your goal.</p>
+                  <p className="text-sm font-semibold text-gray-700"></p>
+                  <p className="text-xs text-gray-500"></p>
                 </div>
                 <button
                   type="button"
@@ -947,19 +998,23 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-gray-900">
-                        {selectedStyle ? selectedStyle.label : 'No style selected'}
+                        {selectedStyle ? selectedStyle.label : t('form.style.placeholderTitle')}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {selectedStyle ? selectedStyle.description : 'Tap to open the gallery'}
+                        {selectedStyle
+                          ? selectedStyle.description
+                          : ''}
                       </p>
                     </div>
                   </div>
-                  <span className="text-sm font-semibold text-[#006069]">Edit</span>
+                  <span className="text-sm font-semibold text-[#006069]">{t('form.color.edit')}</span>
                 </button>
                 <p className="text-xs text-gray-500">
                   {formData.teethStyle
-                    ? `Selected style: ${selectedStyle?.label ?? formData.teethStyle}`
-                    : 'Select a smile inspiration from the gallery.'}
+                    ? t('form.style.selectedStyle', {
+                        value: selectedStyle?.label ?? formData.teethStyle,
+                      })
+                    : ''}
                 </p>
               </div>
             </div>
@@ -968,7 +1023,11 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-3">
-            Upload Photos {formData.images.length > 0 && `(${formData.images.length} selected)`}
+            {t('form.upload.label')}{' '}
+            {formData.images.length > 0 &&
+              `(${t('form.upload.selectedCount', {
+                count: formData.images.length.toString(),
+              })})`}
           </label>
           <div className="relative">
             <input
@@ -991,7 +1050,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                       <div key={index} className="relative group">
                         <img
                           src={preview}
-                          alt={`Preview ${index + 1}`}
+                          alt={t('form.upload.previewAlt', { index: String(index + 1) })}
                           className="w-full h-32 object-cover rounded-lg"
                         />
                         <button
@@ -1013,10 +1072,11 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
                   <Upload className="w-12 h-12 text-[#006069] mb-4" />
                   <p className="mb-2 text-sm text-gray-600">
-                    <span className="font-semibold">Click to upload</span> or drag and drop
+                    <span className="font-semibold">{t('form.upload.cta')}</span>{' '}
+                    {t('form.upload.dragHint')}
                   </p>
-                  <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5MB per image)</p>
-                  <p className="text-xs text-gray-400 mt-1">You can select multiple images</p>
+                  <p className="text-xs text-gray-500">{t('form.upload.fileInfo')}</p>
+                  <p className="text-xs text-gray-400 mt-1">{t('form.upload.multiInfo')}</p>
                 </div>
               )}
             </label>
@@ -1033,8 +1093,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
             className="mt-1 w-5 h-5 text-[#006069] bg-white border-gray-300 rounded focus:ring-[#006069] focus:ring-2"
           />
           <label htmlFor="consent" className="text-sm text-gray-700 cursor-pointer">
-            I consent to the processing of my personal information and photos for consultation purposes. 
-            I understand that my data will be stored securely and used only for providing consultation services.
+            {t('form.consent.text')}
           </label>
         </div>
 
@@ -1052,10 +1111,10 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
           {loading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Processing...
+              {t('form.submit.loading')}
             </>
           ) : (
-            'Get Your Transformation'
+            t('form.submit.label')
           )}
         </button>
       </form>
@@ -1070,7 +1129,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
               <div className="bg-white rounded-2xl p-8 md:p-12 shadow-2xl border border-gray-100 w-full overflow-hidden">
                 <img
                   src={transformationResults[0].transformedUrl}
-                  alt="Transformation Preview"
+                  alt={t('results.header.title')}
                   className="w-full h-auto object-contain blur-xl opacity-70 scale-105"
                 />
               </div>
@@ -1085,13 +1144,13 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-2">
                     {formData.treatmentType === 'teeth' 
-                      ? 'Your Smile is Ready! ✨' 
-                      : 'Your Refined Look Awaits ✨'}
+                      ? t('contactModal.title.teeth') 
+                      : t('contactModal.title.hair')}
                   </h3>
                   <p className="text-gray-600">
                     {formData.treatmentType === 'teeth'
-                      ? "We'd love to send your personalized smile design directly to your inbox"
-                      : "We'd love to send your personalized hair transformation directly to your inbox"}
+                      ? t('contactModal.subtitle.teeth')
+                      : t('contactModal.subtitle.hair')}
                   </p>
                 </div>
 
@@ -1099,7 +1158,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="modal-firstName" className="block text-sm font-medium text-gray-700 mb-1.5">
-                        First Name
+                        {t('contactModal.field.firstName')}
                       </label>
                       <input
                         id="modal-firstName"
@@ -1113,7 +1172,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
                     <div>
                       <label htmlFor="modal-lastName" className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Last Name
+                        {t('contactModal.field.lastName')}
                       </label>
                       <input
                         id="modal-lastName"
@@ -1128,7 +1187,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
                   <div>
                     <label htmlFor="modal-email" className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Email Address
+                      {t('contactModal.field.email')}
                     </label>
                     <input
                       id="modal-email"
@@ -1142,13 +1201,14 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
                   <div>
                     <label htmlFor="modal-phone" className="block text-sm font-medium text-gray-700 mb-1.5">
-                      WhatsApp Number
+                      {t('contactModal.field.phone')}
                     </label>
                     <div className="flex gap-2">
                       <select
                         id="modal-countryCode"
                         value={contactInfo.countryCode}
                         onChange={(e) => setContactInfo({ ...contactInfo, countryCode: e.target.value })}
+                        aria-label={t('contactModal.field.countryCode')}
                         className="w-32 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all text-sm"
                       >
                         {COUNTRY_CODES.map((country) => (
@@ -1163,7 +1223,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                         value={contactInfo.phone}
                         onChange={(e) => setContactInfo({ ...contactInfo, phone: e.target.value })}
                         className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all"
-                        placeholder="555 123 4567"
+                        placeholder={t('contactModal.field.phonePlaceholder')}
                       />
                     </div>
                   </div>
@@ -1172,11 +1232,13 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                 <div className="space-y-3">
                   <p className="text-sm text-gray-600 text-center flex items-center justify-center gap-2">
                     <Mail className="w-4 h-4 text-[#006069]" />
-                    <span>Your PDF will be sent via</span>
-                    <span className="font-semibold text-[#006069]">Email</span>
-                    <span>and</span>
                     <MessageCircle className="w-4 h-4 text-[#25D366]" />
-                    <span className="font-semibold text-[#25D366]">WhatsApp</span>
+                    <span>
+                      {t('contactModal.deliveryInfo', {
+                        email: t('contactModal.emailLabel'),
+                        whatsapp: t('contactModal.whatsappLabel'),
+                      })}
+                    </span>
                   </p>
                 <button
                     onClick={handleSendBoth}
@@ -1186,18 +1248,18 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                     {(submittingContact || submittingWhatsApp) ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Sending...
+                      {t('contactModal.sendLoading')}
                     </>
                   ) : (
                     <>
-                        Send Results
+                        {t('contactModal.sendLabel')}
                     </>
                   )}
                 </button>
                 </div>
 
                 <p className="text-xs text-gray-500 text-center">
-                  Your information will be kept secure and used only for consultation purposes.
+                  {t('contactModal.notice')}
                 </p>
               </div>
             </div>
@@ -1215,7 +1277,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
               </div>
               
               <h3 className="text-2xl font-bold text-gray-900">
-                Success!
+                {t('success.title')}
               </h3>
               
               <p className="text-gray-600 text-lg">
@@ -1227,7 +1289,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
               onClick={handleCloseAndShowResult}
               className="w-full py-3 px-6 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-xl transition-all"
             >
-              View Your Results
+              {t('success.cta')}
             </button>
           </div>
         </div>
@@ -1247,8 +1309,8 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                     className="h-12 brightness-0 invert"
                   />
                   <div>
-                    <h1 className="text-2xl font-bold">Your Transformation</h1>
-                    <p className="text-white/80 text-sm">Natural Clinic Design Studio</p>
+                    <h1 className="text-2xl font-bold">{t('results.header.title')}</h1>
+                    <p className="text-white/80 text-sm">{t('results.header.subtitle')}</p>
                   </div>
                 </div>
                 <div className="flex justify-end">
@@ -1256,7 +1318,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                     onClick={handleBackToForm}
                     className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-all"
                   >
-                    <span>Start New</span>
+                    <span>{t('results.header.button')}</span>
                     <X className="w-5 h-5" />
                   </button>
                 </div>
@@ -1268,15 +1330,23 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
               <div className="max-w-6xl mx-auto">
                 {/* Patient Info */}
                 <div className="text-center mb-10">
-                  <p className="text-gray-500 text-sm uppercase tracking-wide mb-2">Results for</p>
+                  <p className="text-gray-500 text-sm uppercase tracking-wide mb-2">
+                    {t('results.info.label')}
+                  </p>
                   <h2 className="text-3xl font-bold text-gray-900">
                     {contactInfo.firstName} {contactInfo.lastName}
                   </h2>
                   {formData.treatmentType === 'teeth' && (
                     <p className="text-gray-600 mt-2">
-                      Color: <span className="font-semibold text-[#006069]">{formData.teethShade}</span>
+                      <span className="font-semibold text-[#006069]">
+                        {t('results.info.color', { value: formData.teethShade })}
+                      </span>
                       {' · '}
-                      Style: <span className="font-semibold text-[#006069]">{formData.teethStyle.replace(/([A-Z])/g, ' $1').trim()}</span>
+                      <span className="font-semibold text-[#006069]">
+                        {t('results.info.style', {
+                          value: formData.teethStyle.replace(/([A-Z])/g, ' $1').trim(),
+                        })}
+                      </span>
                     </p>
                   )}
                 </div>
@@ -1289,12 +1359,12 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                       <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
                         <span className="text-gray-600 font-bold">1</span>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900">Before</h3>
+                      <h3 className="text-xl font-bold text-gray-900">{t('results.gallery.before')}</h3>
                     </div>
                     <div className="relative rounded-2xl overflow-hidden shadow-xl border border-gray-200">
                       <img
                         src={transformationResults[0].originalUrl}
-                        alt="Before transformation"
+                        alt={t('results.gallery.before')}
                         className="w-full h-auto"
                       />
                     </div>
@@ -1306,16 +1376,16 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                       <div className="w-10 h-10 rounded-full bg-[#006069] flex items-center justify-center">
                         <span className="text-white font-bold">2</span>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900">After</h3>
+                      <h3 className="text-xl font-bold text-gray-900">{t('results.gallery.after')}</h3>
                     </div>
                     <div className="relative rounded-2xl overflow-hidden shadow-xl border border-[#006069]/20">
                       <img
                         src={transformationResults[0].transformedUrl}
-                        alt="After transformation"
+                        alt={t('results.gallery.after')}
                         className="w-full h-auto"
                       />
                       <div className="absolute top-4 right-4 bg-[#006069] text-white px-3 py-1 rounded-full text-sm font-semibold">
-                        AI Preview
+                        {t('results.gallery.badge')}
                       </div>
                     </div>
                   </div>
@@ -1324,26 +1394,39 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                 {/* CTA Section */}
                 <div className="mt-12 text-center">
                   <div className="bg-gradient-to-r from-[#006069]/10 to-[#004750]/10 rounded-2xl p-8 max-w-2xl mx-auto">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                      Ready to Make It Real?
-                    </h3>
-                    <p className="text-gray-600 mb-6">
-                      Our specialists are ready to discuss your personalized treatment plan.
-                    </p>
+                    <div className="flex flex-col items-center gap-2 mb-6">
+                      <div className="flex items-center gap-2 text-gray-900 font-bold text-xl">
+                        <Headphones className="w-5 h-5 text-[#006069]" aria-hidden="true" />
+                        <span>{t('pdf.cta.title')}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Headphones className="w-4 h-4 text-[#006069]" aria-hidden="true" />
+                        <span>{t('pdf.cta.subtitle')}</span>
+                      </div>
+                    </div>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                      <a
+                        href={WHATSAPP_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-6 py-3 bg-[#25D366] hover:bg-[#1da856] text-white font-semibold rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
+                      >
+                        <WhatsAppIcon className="w-5 h-5 text-white" />
+                        <span>{t('results.cta.whatsappButton')}</span>
+                      </a>
                       <a
                         href="https://natural.clinic/contact"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-6 py-3 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-xl transition-all shadow-lg"
                       >
-                        Book Consultation
+                        {t('results.cta.primary')}
                       </a>
                       <button
                         onClick={handleBackToForm}
                         className="px-6 py-3 bg-white hover:bg-gray-50 text-[#006069] font-semibold rounded-xl transition-all border border-[#006069]"
                       >
-                        Try Another Photo
+                        {t('results.cta.secondary')}
                       </button>
                     </div>
                   </div>
@@ -1354,10 +1437,10 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
             {/* Footer */}
             <div className="bg-gray-50 py-4 px-4 text-center">
               <p className="text-gray-500 text-sm">
-                © {new Date().getFullYear()} Natural Clinic. All rights reserved.
+                {t('results.footer.copy', { year: String(new Date().getFullYear()) })}
               </p>
               <p className="text-gray-400 text-xs mt-0.5">
-                This is an AI-generated preview. Actual results may vary.
+                {t('results.footer.note')}
               </p>
             </div>
           </div>
@@ -1369,26 +1452,30 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-[#006069] uppercase tracking-wide">Reference</p>
-                <h3 className="text-2xl font-bold text-gray-900">Teeth Color Guide</h3>
+                <p className="text-xs font-semibold text-[#006069] uppercase tracking-wide">
+                  {t('shade.reference')}
+                </p>
+                <h3 className="text-2xl font-bold text-gray-900">{t('shade.title')}</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowShadeGuide(false)}
                 className="text-gray-500 hover:text-gray-800 text-2xl leading-none"
-                aria-label="Close shade guide"
+                aria-label={t('aria.closeShadeGuide')}
               >
                 ×
               </button>
             </div>
             <p className="text-sm text-gray-600">
-              0M tones are brightest bleach colors, A/B are warm natural tones, C is grey, and D is a cool reddish-grey. Click any section on the chart to apply it instantly.
+              {t('shade.description')}
             </p>
             <div className="rounded-xl border border-gray-200">
               {renderShadeGuideVariant(isMobileViewport ? 'mobile' : 'desktop')}
             </div>
             <p className="text-xs text-[#006069] font-semibold">
-              Selected tone: {formData.teethShade || 'None'}
+              {formData.teethShade
+                ? t('shade.selectedTone', { value: formData.teethShade })
+                : t('shade.selectedNone')}
             </p>
           </div>
         </div>
@@ -1399,20 +1486,22 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-[#006069] uppercase tracking-wide">Reference</p>
-                <h3 className="text-2xl font-bold text-gray-900">Smile Style Gallery</h3>
+                <p className="text-xs font-semibold text-[#006069] uppercase tracking-wide">
+                  {t('shade.reference')}
+                </p>
+                <h3 className="text-2xl font-bold text-gray-900">{t('styleGuide.title')}</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowStyleGuide(false)}
                 className="text-gray-500 hover:text-gray-800 text-2xl leading-none"
-                aria-label="Close style guide"
+                aria-label={t('aria.closeStyleGuide')}
               >
                 ×
               </button>
             </div>
             <p className="text-sm text-gray-600">
-              Compare each tooth shape inspiration so you can pick the closest match for your transformation. Tap a smile directly on the collage to select it.
+              {t('styleGuide.description')}
             </p>
             <div className="rounded-xl border border-gray-200">
               <div
@@ -1421,7 +1510,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
               >
                 <Image
                   src="/assets/teeth_styles.jpeg"
-                  alt="Smile style gallery"
+                  alt={t('styleGuide.title')}
                   fill
                   className="object-contain select-none"
                   sizes="(max-width: 768px) 90vw, 800px"
@@ -1434,7 +1523,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                       <button
                         key={style.value}
                         type="button"
-                        aria-label={`Select style ${style.label}`}
+                        aria-label={t('aria.selectStyle', { value: style.label })}
                         onClick={() => {
                           setFormData((prev) => ({ ...prev, teethStyle: style.value }));
                           setShowStyleGuide(false);
@@ -1457,7 +1546,13 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
               </div>
             </div>
             <p className="text-xs text-[#006069] font-semibold">
-              Selected style: {formData.teethStyle ? TEETH_STYLE_OPTIONS.find((s) => s.value === formData.teethStyle)?.label : 'None'}
+              {formData.teethStyle
+                ? t('styleGuide.selectedStyle', {
+                    value:
+                      TEETH_STYLE_OPTIONS.find((s) => s.value === formData.teethStyle)?.label ||
+                      formData.teethStyle,
+                  })
+                : t('styleGuide.selectedNone')}
             </p>
           </div>
         </div>
@@ -1484,12 +1579,24 @@ async function blobToBase64(blob: Blob) {
   });
 }
 
-async function generatePdf(result: TransformationResult, contactName: string, treatmentType: 'teeth' | 'hair' = 'teeth') {
-  const canvas = await renderResultCanvas(result, contactName, treatmentType);
+type TranslatorFn = (key: string, replacements?: Record<string, string>) => string;
+
+async function generatePdf(
+  result: TransformationResult,
+  contactName: string,
+  treatmentType: 'teeth' | 'hair' = 'teeth',
+  translate: TranslatorFn
+) {
+  const canvas = await renderResultCanvas(result, contactName, treatmentType, translate);
   return createPdfFromCanvas(canvas);
 }
 
-async function renderResultCanvas(result: TransformationResult, contactName: string, treatmentType: 'teeth' | 'hair' = 'teeth') {
+async function renderResultCanvas(
+  result: TransformationResult,
+  contactName: string,
+  treatmentType: 'teeth' | 'hair' = 'teeth',
+  translate: TranslatorFn
+) {
   const canvas = document.createElement('canvas');
   const width = 1120;
   const height = 1654;
@@ -1501,54 +1608,73 @@ async function renderResultCanvas(result: TransformationResult, contactName: str
     throw new Error('Unable to render PDF preview');
   }
 
-  ctx.fillStyle = '#ffffff';
+  const backgroundColor = '#006069';
+  const frameColor = '#0b5b64';
+  const textColor = '#ffffff';
+
+  ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, width, height);
 
-  await renderHeader(ctx, width);
+  await renderHeader(ctx, width, translate);
 
-  // "Dear Name Surname" yazısı
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#006069';
+  ctx.fillStyle = textColor;
   ctx.font = '32px "Helvetica Neue", Arial, sans-serif';
-  ctx.fillText(`Dear ${contactName || 'Valued Guest'},`, 80, 300);
-  
+  ctx.fillText(
+    translate('pdf.dear', { name: contactName || translate('pdf.guest') }),
+    80,
+    280
+  );
+
   ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
-  ctx.fillStyle = '#006069';
-  const previewText = treatmentType === 'teeth' 
-    ? 'Here is your personalized smile design preview'
-    : 'Here is your personalized hair transformation preview';
-  ctx.fillText(previewText, 80, 340);
+  const previewText =
+    treatmentType === 'teeth'
+      ? translate('pdf.smilePreview')
+      : translate('pdf.hairPreview');
+  ctx.fillText(previewText, 80, 320);
 
-  // Resimler alt alta, geniş ve orantılı
   const margin = 80;
-  const boxWidth = width - margin * 2; // Tam genişlik (960px)
-  const boxHeight = 480; // Her resim için yükseklik
-  const gap = 50; // Resimler arası boşluk
-  
-  const beforeY = 400;
-  const afterY = beforeY + boxHeight + gap + 30; // +30 for label
+  const gap = 60;
+  const panelWidth = (width - margin * 2 - gap) / 2;
+  const panelHeight = 900;
+  const panelY = 420;
 
-  // Before label ve resim
   ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#0f5f64';
-  ctx.fillText('Before', margin, beforeY - 10);
-  await drawImagePanel(ctx, result.originalUrl, margin, beforeY, boxWidth, boxHeight);
+  ctx.fillStyle = textColor;
+  ctx.fillText(translate('results.gallery.before'), margin, panelY - 20);
+  await drawImagePanel(ctx, result.originalUrl, margin, panelY, panelWidth, panelHeight, frameColor);
 
-  // After label ve resim
-  ctx.fillText('After', margin, afterY - 10);
-  await drawImagePanel(ctx, result.transformedUrl, margin, afterY, boxWidth, boxHeight);
+  ctx.textAlign = 'left';
+  ctx.fillText(
+    translate('results.gallery.after'),
+    margin + panelWidth + gap,
+    panelY - 20
+  );
+  await drawImagePanel(
+    ctx,
+    result.transformedUrl,
+    margin + panelWidth + gap,
+    panelY,
+    panelWidth,
+    panelHeight,
+    frameColor
+  );
 
   // Footer
   ctx.textAlign = 'center';
   ctx.font = '28px "Helvetica Neue", Arial, sans-serif';
-  ctx.fillStyle = '#0f5f64';
-  ctx.fillText('www.natural.clinic', width / 2, height - 40);
+  ctx.fillStyle = textColor;
+  ctx.fillText(translate('pdf.websiteLabel'), width / 2, height - 40);
 
   return canvas;
 }
 
-async function renderHeader(ctx: CanvasRenderingContext2D, width: number) {
+async function renderHeader(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  translate: TranslatorFn
+) {
   try {
     const logo = await loadImageElement(LOGO_URL);
     const maxLogoWidth = 380;
@@ -1568,18 +1694,18 @@ async function renderHeader(ctx: CanvasRenderingContext2D, width: number) {
     // "Design Studio" yazısı - logonun sağ üst kısmında
     ctx.textAlign = 'left';
     ctx.font = 'bold 24px "Helvetica Neue", Arial, sans-serif';
-    ctx.fillStyle = '#006069';
-    ctx.fillText('Design Studio', startX + logoWidth + 15, topMargin + 35);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(translate('hero.badge'), startX + logoWidth + 15, topMargin + 40);
   } catch {
     ctx.textAlign = 'center';
     ctx.font = 'bold 48px "Helvetica Neue", Arial, sans-serif';
-    ctx.fillStyle = '#0f5f64';
+    ctx.fillStyle = '#ffffff';
     ctx.fillText('Natural Clinic', width / 2, 140);
     
     // Fallback durumunda da Design Studio yazısını ekle
     ctx.font = 'bold 24px "Helvetica Neue", Arial, sans-serif';
-    ctx.fillStyle = '#006069';
-    ctx.fillText('Design Studio', width / 2 + 180, 120);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(translate('hero.badge'), width / 2, 190);
   }
 }
 
@@ -1589,17 +1715,19 @@ async function drawImagePanel(
   x: number,
   y: number,
   width: number,
-  height: number
+  height: number,
+  frameColor: string
 ) {
-  drawRoundedRect(ctx, x, y, width, height, 24, '#e6ecec');
+  drawRoundedRect(ctx, x, y, width, height, 24, frameColor);
 
   const innerX = x + 16;
   const innerY = y + 16;
   const innerWidth = width - 32;
   const innerHeight = height - 32;
+  const placeholderColor = '#0d4a51';
 
   if (!src) {
-    ctx.fillStyle = '#f7f9fa';
+    ctx.fillStyle = placeholderColor;
     roundedRectPath(ctx, innerX, innerY, innerWidth, innerHeight, 16);
     ctx.fill();
     return;
@@ -1607,7 +1735,7 @@ async function drawImagePanel(
 
   try {
     const image = await loadImageElement(src);
-    ctx.fillStyle = '#f7f9fa';
+    ctx.fillStyle = '#ffffff';
     roundedRectPath(ctx, innerX, innerY, innerWidth, innerHeight, 16);
     ctx.fill();
     ctx.save();
@@ -1672,6 +1800,7 @@ function drawImageWithinBox(
   const offsetY = y + (height - drawHeight) / 2;
   ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
 }
+
 
 function createPdfFromCanvas(canvas: HTMLCanvasElement) {
   const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
