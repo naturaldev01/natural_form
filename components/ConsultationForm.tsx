@@ -6,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Upload, Loader2, Mail, X, CheckCircle, MessageCircle, Headphones } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useI18n } from '@/lib/i18n';
+import type { TranslationKey } from '@/lib/i18n/translations';
 
 const WHATSAPP_NUMBER = '902129190555';
 const WHATSAPP_MESSAGE =
@@ -1579,7 +1580,10 @@ async function blobToBase64(blob: Blob) {
   });
 }
 
-type TranslatorFn = (key: string, replacements?: Record<string, string>) => string;
+type TranslatorFn = (
+  key: TranslationKey,
+  replacements?: Record<string, string>
+) => string;
 
 async function generatePdf(
   result: TransformationResult,
