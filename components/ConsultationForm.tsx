@@ -1798,6 +1798,28 @@ function drawImageWithinBox(
   width: number,
   height: number
 ) {
+  // CONTAIN yerine COVER:
+  const scale = Math.max(width / image.width, height / image.height);
+
+  const drawWidth = image.width * scale;
+  const drawHeight = image.height * scale;
+
+  // Ortadan kırparak hizala
+  const offsetX = x + (width - drawWidth) / 2;
+  const offsetY = y + (height - drawHeight) / 2;
+
+  ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+}
+
+/*
+function drawImageWithinBox(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+) {
   const scale = Math.min(width / image.width, height / image.height);
   const drawWidth = image.width * scale;
   const drawHeight = image.height * scale;
@@ -1805,7 +1827,7 @@ function drawImageWithinBox(
   const offsetY = y + (height - drawHeight) / 2;
   ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
 }
-
+*/
 
 function createPdfFromCanvas(canvas: HTMLCanvasElement) {
   const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
