@@ -1641,7 +1641,7 @@ async function renderResultCanvas(
   const gap = 40;
   const panelWidth = (width - margin * 2 - gap) / 2;
   const panelHeight = 1100;
-  const panelY = 360;
+  const panelY = 450;
 
   ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
   ctx.textAlign = 'left';

@@ -921,7 +921,7 @@ async function renderResultCanvas(result: TransformationResult, contactName: str
   const gap = 40;
   const panelWidth = (width - margin * 2 - gap) / 2;
   const panelHeight = 1100;
-  const panelY = 360;
+  const panelY = 450;
   const beforeX = margin;
   const afterX = margin + panelWidth + gap;
 
