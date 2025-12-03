@@ -917,11 +917,11 @@ async function renderResultCanvas(result: TransformationResult, contactName: str
   ctx.fillText(previewText, 80, 320);
 
   ctx.fillStyle = textColor;
-  const margin = 80;
-  const gap = 60;
+  const margin = 60;
+  const gap = 40;
   const panelWidth = (width - margin * 2 - gap) / 2;
-  const panelHeight = 900;
-  const panelY = 420;
+  const panelHeight = 1100;
+  const panelY = 360;
   const beforeX = margin;
   const afterX = margin + panelWidth + gap;
 
@@ -975,10 +975,11 @@ async function renderHeader(ctx: CanvasRenderingContext2D, width: number) {
 async function drawImagePanel(ctx: CanvasRenderingContext2D, src: string, x: number, y: number, width: number, height: number, frameColor: string) {
   drawRoundedRect(ctx, x, y, width, height, 24, frameColor);
 
-  const innerX = x + 16;
-  const innerY = y + 16;
-  const innerWidth = width - 32;
-  const innerHeight = height - 32;
+  const padding = 12;
+  const innerX = x + padding;
+  const innerY = y + padding;
+  const innerWidth = width - padding * 2;
+  const innerHeight = height - padding * 2;
 
   if (!src) {
     ctx.fillStyle = '#0d4a51';

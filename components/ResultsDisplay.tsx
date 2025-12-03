@@ -487,11 +487,11 @@ async function renderResultCanvas(result: { originalUrl: string; transformedUrl:
   ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
   ctx.fillText('Here is your personalized smile design preview', 80, 320);
 
-  const margin = 80;
-  const gap = 60;
+  const margin = 60;
+  const gap = 40;
   const panelWidth = (width - margin * 2 - gap) / 2;
-  const panelHeight = 900;
-  const panelY = 430;
+  const panelHeight = 1100;
+  const panelY = 360;
 
   ctx.font = '24px "Helvetica Neue", Arial, sans-serif';
   ctx.textAlign = 'left';
@@ -549,10 +549,11 @@ async function drawImagePanel(
 ) {
   drawRoundedRect(ctx, x, y, width, height, 24, frameColor);
 
-  const innerX = x + 16;
-  const innerY = y + 16;
-  const innerWidth = width - 32;
-  const innerHeight = height - 32;
+  const padding = 12;
+  const innerX = x + padding;
+  const innerY = y + padding;
+  const innerWidth = width - padding * 2;
+  const innerHeight = height - padding * 2;
 
   if (!src) {
     ctx.fillStyle = '#0d4a51';
