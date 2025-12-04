@@ -35,31 +35,39 @@ Target look:
 - A realistic, high-end dental clinic “after treatment” result.
 `.trim(),
 
-hair: `
-Enhance ONLY the hair of the person in this photo.
+hair: 
+`Role: Advanced Clinical Hair Restoration Simulator
 
-General Goals:
-- Improve fullness, density, and overall healthy appearance.
-- Reduce visible scalp while maintaining realism.
-- Smooth frizz/flyaways while keeping the natural texture and original color.
-- Respect the person’s natural hair type (straight, wavy, curly, coily, afro-textured).
+Task:
+Realistically enhance the hair density of the subject to simulate a successful 6–9 month clinical hair transplant or treatment result. The output must be indistinguishable from a real photograph.
 
-Ethnic & Texture Adaptation:
-- Automatically detect the individual's hair type and ethnicity-related characteristics.
-- For afro-textured or tightly coiled hair: increase volume and definition without changing the curl pattern; avoid artificial shine or straightening.
-- For curly/wavy hair: enhance curl definition and reduce frizz without altering curl size.
-- For straight or fine hair: add subtle density and reduced scalp visibility without creating unnatural thickness.
-- Maintain natural hairline shape, hair texture and growth direction for all hair types.
+1. Volumetric Density & 3D Structure:
+   - Treat the hair as a 3D volumetric object, not a flat texture.
+   - Significantly increase density at the roots to reduce scalp visibility, simulating a graft density of 60–80 follicular units per cm².
+   - Ensure new strands layer naturally over each other to create genuine depth and occlusion.
 
-Strict Rules:
-- Do NOT change the person’s face, skin, features or expression.
-- Do NOT modify background, clothing, accessories or lighting.
-- Avoid unrealistic shine, smoothing or beauty filters.
-- Preserve the original color, ethnic characteristics and texture of the hair.
+2. Frontal Zone & Hairline (Critical):
+   - Reinforce the frontal band (first 2-3 cm behind the hairline) with high density.
+   - Create a "soft transition" at the very edge of the hairline using finer, shorter "baby hairs" (micro-strands) to avoid an artificial "doll hair" or "helmet" look.
+   - Maintain the original hairline shape but define it with natural irregularity.
 
-Target Look:
-- A natural, clinic-quality "after treatment" improvement that stays true to the person’s real hair.
-`.trim()
+3. Global Consistency (Multi-Angle Adaptation):
+   - If the view is Top/Vertex: Fill the crown area while preserving the natural swirl pattern (whorl) of the hair growth.
+   - If the view is Side/Profile: Increase density at the temples and ensure the volume connects seamlessly from the top to the sides.
+   - If the view is Back: Maintain donor area density and ensure texture consistency with the top.
+
+4. Texture, Lighting & Integration:
+   - Match the existing hair's texture (curl pattern, thickness), color variance (including greys if present), and directional flow exactly.
+   - Introduce varied strand lengths to simulate active growth phases (anagen).
+   - Simulate realistic light interaction: The increased density should cast minute shadows on the scalp, grounding the hair realistically.
+
+5. Strict Constraints:
+   - MODIFY ONLY THE HAIR. Do not alter the face, skin texture, forehead, ears, or background.
+   - NO smoothing, blurring, or painting effects.
+   - NO solid blocks of color; every added element must be a distinct hair strand.`
+
+
+.trim()
 
 };
 
@@ -71,8 +79,10 @@ async function generateWithGeminiModel(
   prompt: string,
   mimeType: string,
   base64Image: string,
-  apiKey: string
+  apiKey: string,
+  options?: { temperature?: number }
 ) {
+  const temperature = options?.temperature ?? 0.2;
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
     {
@@ -93,7 +103,7 @@ async function generateWithGeminiModel(
           },
         ],
         generationConfig: {
-          temperature: 0.4,
+          temperature,
           topK: 32,
           topP: 1,
           maxOutputTokens: 4096,
@@ -279,13 +289,15 @@ export async function POST(req: Request) {
 
     let transformedImageData: string | null = null;
 
+    const modelTemperature = treatmentType === 'hair' ? 0.65 : 0.4;
     for (const modelName of geminiModels) {
       const result = await generateWithGeminiModel(
         modelName,
         prompt,
         mimeType,
         base64Image,
-        geminiApiKey
+        geminiApiKey,
+        { temperature: modelTemperature }
       );
 
       if (result.success) {
