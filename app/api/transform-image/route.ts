@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 export const runtime = 'nodejs';
 
@@ -12,6 +14,56 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
+
+interface ReferenceImage {
+  mimeType: string;
+  data: string;
+}
+
+const OPERATION_REFERENCE_FILES = [
+  'BEFORE1.jpg',
+  'BEFORE2.jpg',
+  'BEFORE3.jpg',
+  'BEFORE4.jpg',
+  'OP1.jpg',
+  'OP2.jpg',
+  'OP3.jpg',
+  'OP4.jpg',
+  'AFTER1.jpg',
+  'AFTER2.jpg',
+  'AFTER3.jpg',
+  'AFTER4.jpg',
+];
+
+let operationReferenceCache: Promise<ReferenceImage[]> | null = null;
+
+async function getOperationReferenceImages(): Promise<ReferenceImage[]> {
+  if (!operationReferenceCache) {
+    operationReferenceCache = (async () => {
+      try {
+        const root = path.join(process.cwd(), 'public', 'assets', 'operations');
+        const files = await Promise.all(
+          OPERATION_REFERENCE_FILES.map(async (file) => {
+            try {
+              const filePath = path.join(root, file);
+              const buffer = await fs.readFile(filePath);
+              return {
+                mimeType: 'image/jpeg',
+                data: buffer.toString('base64'),
+              } as ReferenceImage;
+            } catch {
+              return null;
+            }
+          })
+        );
+        return files.filter((img): img is ReferenceImage => Boolean(img));
+      } catch {
+        return [];
+      }
+    })();
+  }
+  return operationReferenceCache;
+}
 
 /* -------------------------------------------------------
    BASE PROMPTS (revized & clinic-grade)
@@ -80,9 +132,29 @@ async function generateWithGeminiModel(
   mimeType: string,
   base64Image: string,
   apiKey: string,
-  options?: { temperature?: number }
+  options?: { temperature?: number; references?: ReferenceImage[] }
 ) {
   const temperature = options?.temperature ?? 0.2;
+  const parts: any[] = [
+    { text: prompt },
+    {
+      inline_data: {
+        mime_type: mimeType,
+        data: base64Image,
+      },
+    },
+  ];
+
+  if (options?.references?.length) {
+    for (const ref of options.references) {
+      parts.push({
+        inline_data: {
+          mime_type: ref.mimeType,
+          data: ref.data,
+        },
+      });
+    }
+  }
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
     {
@@ -91,15 +163,7 @@ async function generateWithGeminiModel(
       body: JSON.stringify({
         contents: [
           {
-            parts: [
-              { text: prompt },
-              {
-                inline_data: {
-                  mime_type: mimeType,
-                  data: base64Image,
-                },
-              },
-            ],
+            parts,
           },
         ],
         generationConfig: {
@@ -122,8 +186,8 @@ async function generateWithGeminiModel(
 
   if (!candidate) return { success: false as const, error: 'No candidates returned' };
 
-  const parts = candidate.content?.parts || [];
-  for (const part of parts) {
+  const candidateParts = candidate.content?.parts || [];
+  for (const part of candidateParts) {
     if (part.inline_data?.data || part.inlineData?.data) {
       return { success: true, data: part.inline_data?.data || part.inlineData?.data };
     }
@@ -226,6 +290,7 @@ export async function POST(req: Request) {
     }
 
     // Teeth validation
+    let referenceImages: ReferenceImage[] = [];
     if (treatmentType === 'teeth') {
       if (teethShade && !VALID_TEETH_SHADES.includes(teethShade)) {
         return buildResponse({ error: 'Invalid teeth shade value' }, 400);
@@ -233,6 +298,8 @@ export async function POST(req: Request) {
       if (teethStyle && !VALID_TEETH_STYLES.includes(teethStyle)) {
         return buildResponse({ error: 'Invalid teeth style value' }, 400);
       }
+    } else {
+      referenceImages = await getOperationReferenceImages();
     }
 
     const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -278,6 +345,8 @@ export async function POST(req: Request) {
       if (shadeDesc || styleDesc) {
         prompt += `\nEnsure the results remain natural and clinically realistic.\n`;
       }
+    } else if (referenceImages.length) {
+      prompt += `\n\nUse the provided before/operation/after reference photos to mimic Natural Clinic's hair restoration outcomes. Match the density, layering, and natural finish seen in those references.`;
     }
 
     /* -------- Generate With Gemini -------- */
@@ -297,7 +366,7 @@ export async function POST(req: Request) {
         mimeType,
         base64Image,
         geminiApiKey,
-        { temperature: modelTemperature }
+        { temperature: modelTemperature, references: referenceImages }
       );
 
       if (result.success) {

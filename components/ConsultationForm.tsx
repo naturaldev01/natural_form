@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Upload, Loader2, Mail, X, CheckCircle, MessageCircle, Headphones } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useI18n } from '@/lib/i18n';
-import type { TranslationKey } from '@/lib/i18n/translations';
+import { SUPPORTED_LANGUAGES, type TranslationKey } from '@/lib/i18n/translations';
 
 const WHATSAPP_NUMBER = '902129190555';
 const WHATSAPP_MESSAGE =
@@ -272,9 +272,16 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
   const selectedShade = TEETH_SHADES.find((shade) => shade.value === formData.teethShade);
   const selectedStyle = TEETH_STYLE_OPTIONS.find((style) => style.value === formData.teethStyle);
   const navigateForTreatment = (type: 'teeth' | 'hair') => {
-    const targetPath = type === 'teeth' ? '/teeth' : '/hair';
-    if (pathname !== targetPath) {
-      router.push(targetPath);
+    const segments = pathname?.split('/').filter(Boolean) ?? [];
+    const potentialLocale = segments[0];
+    const hasLocale = potentialLocale
+      ? SUPPORTED_LANGUAGES.some((lang) => lang.code === potentialLocale)
+      : false;
+    const prefix = hasLocale ? `/${potentialLocale}` : '';
+    const targetPath = type === 'teeth' ? `${prefix}/teeth` : `${prefix}/hair`;
+    const normalizedTarget = targetPath.replace(/\/\/+/g, '/');
+    if (pathname !== normalizedTarget) {
+      router.push(normalizedTarget);
     }
   };
   const handleTreatmentSelect = (type: 'teeth' | 'hair') => {
