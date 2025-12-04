@@ -480,7 +480,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
       // PDF oluştur ve mail gönder
       const pdfBlob = await generatePdf(
-        transformationResults[0],
+        transformationResults,
         `${contactInfo.firstName} ${contactInfo.lastName}`,
         formData.treatmentType,
         t
@@ -564,7 +564,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       }
 
       // PDF oluştur
-      const pdfBlob = await generatePdf(transformationResults[0], contactName, formData.treatmentType, t);
+      const pdfBlob = await generatePdf(transformationResults, contactName, formData.treatmentType, t);
 
       // Türkçe karakterleri ASCII'ye çevir ve özel karakterleri temizle
       const sanitizedName = contactName
@@ -682,7 +682,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       }
 
       // PDF oluştur
-      const pdfBlob = await generatePdf(transformationResults[0], contactName, formData.treatmentType, t);
+      const pdfBlob = await generatePdf(transformationResults, contactName, formData.treatmentType, t);
       const pdfBase64 = await blobToBase64(pdfBlob);
 
       // Türkçe karakterleri ASCII'ye çevir ve özel karakterleri temizle
@@ -1358,44 +1358,59 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                   )}
                 </div>
 
-                {/* Before/After Grid */}
-                <div className="grid md:grid-cols-2 gap-8">
-                  {/* Before */}
-                  <div className="space-y-3 sm:space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                        <span className="text-gray-600 font-bold">1</span>
+                {/* Before/After Sets */}
+                <div className="space-y-12">
+                  {transformationResults.map((result, index) => (
+                    <div key={result.transformedUrl} className="space-y-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#006069]/10 flex items-center justify-center text-[#006069] font-bold">
+                          {index + 1}
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900">
+                          {t('results.gallery.imageLabel', { index: String(index + 1) })}
+                        </h3>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900">{t('results.gallery.before')}</h3>
-                    </div>
-                    <div className="relative rounded-2xl overflow-hidden shadow-xl border border-gray-200">
-                      <img
-                        src={transformationResults[0].originalUrl}
-                        alt={t('results.gallery.before')}
-                        className="w-full h-auto"
-                      />
-                    </div>
-                  </div>
-
-                  {/* After */}
-                  <div className="space-y-3 sm:space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[#006069] flex items-center justify-center">
-                        <span className="text-white font-bold">2</span>
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <div className="space-y-3 sm:space-y-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                              <span className="text-gray-600 font-bold">1</span>
+                            </div>
+                            <h4 className="text-lg font-semibold text-gray-900">
+                              {t('results.gallery.before')}
+                            </h4>
+                          </div>
+                          <div className="relative rounded-2xl overflow-hidden shadow-xl border border-gray-200">
+                            <img
+                              src={result.originalUrl}
+                              alt={`${t('results.gallery.before')} ${index + 1}`}
+                              className="w-full h-auto"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-3 sm:space-y-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-[#006069] flex items-center justify-center">
+                              <span className="text-white font-bold">2</span>
+                            </div>
+                            <h4 className="text-lg font-semibold text-gray-900">
+                              {t('results.gallery.after')}
+                            </h4>
+                          </div>
+                          <div className="relative rounded-2xl overflow-hidden shadow-xl border border-[#006069]/20">
+                            <img
+                              src={result.transformedUrl}
+                              alt={`${t('results.gallery.after')} ${index + 1}`}
+                              className="w-full h-auto"
+                            />
+                            <div className="absolute top-4 right-4 bg-[#006069] text-white px-3 py-1 rounded-full text-sm font-semibold">
+                              {t('results.gallery.badge')}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900">{t('results.gallery.after')}</h3>
                     </div>
-                    <div className="relative rounded-2xl overflow-hidden shadow-xl border border-[#006069]/20">
-                      <img
-                        src={transformationResults[0].transformedUrl}
-                        alt={t('results.gallery.after')}
-                        className="w-full h-auto"
-                      />
-                      <div className="absolute top-4 right-4 bg-[#006069] text-white px-3 py-1 rounded-full text-sm font-semibold">
-                        {t('results.gallery.badge')}
-                      </div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
                 {/* CTA Section */}
@@ -1592,13 +1607,20 @@ type TranslatorFn = (
 ) => string;
 
 async function generatePdf(
-  result: TransformationResult,
+  results: TransformationResult[],
   contactName: string,
   treatmentType: 'teeth' | 'hair' = 'teeth',
   translate: TranslatorFn
 ) {
-  const canvas = await renderResultCanvas(result, contactName, treatmentType, translate);
-  return createPdfFromCanvas(canvas);
+  if (!results.length) {
+    throw new Error('No results to export');
+  }
+  const canvases: HTMLCanvasElement[] = [];
+  for (const result of results) {
+    const canvas = await renderResultCanvas(result, contactName, treatmentType, translate);
+    canvases.push(canvas);
+  }
+  return createPdfFromCanvases(canvases);
 }
 
 async function renderResultCanvas(
@@ -1819,7 +1841,7 @@ function drawImageWithinBox(
 
 
 
-function createPdfFromCanvas(canvas: HTMLCanvasElement) {
+function canvasToImageBytes(canvas: HTMLCanvasElement) {
   const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
   const base64 = dataUrl.replace(/^data:image\/jpeg;base64,/, '');
   const binary = atob(base64);
@@ -1827,10 +1849,10 @@ function createPdfFromCanvas(canvas: HTMLCanvasElement) {
   for (let i = 0; i < binary.length; i++) {
     imgBytes[i] = binary.charCodeAt(i);
   }
-  return createPdfFromImageBytes(imgBytes, canvas.width, canvas.height);
+  return imgBytes;
 }
 
-function createPdfFromImageBytes(imageBytes: Uint8Array, width: number, height: number) {
+function createPdfFromCanvases(canvases: HTMLCanvasElement[]) {
   const encoder = new TextEncoder();
   const chunks: Uint8Array[] = [];
   const offsets: number[] = [];
@@ -1851,56 +1873,74 @@ function createPdfFromImageBytes(imageBytes: Uint8Array, width: number, height: 
 
   pushString('%PDF-1.3\n');
 
+  const pages = canvases.map((canvas) => ({
+    width: canvas.width,
+    height: canvas.height,
+    imageBytes: canvasToImageBytes(canvas),
+  }));
+
+  const totalPages = pages.length;
+  const totalObjects = 2 + totalPages * 3;
+
   startObject();
   pushString('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
 
   startObject();
-  pushString('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+  const kidsRefs = pages
+    .map((_, index) => `${3 + index * 3} 0 R`)
+    .join(' ');
+  pushString(`2 0 obj\n<< /Type /Pages /Kids [${kidsRefs}] /Count ${totalPages} >>\nendobj\n`);
 
-  startObject();
-  pushString(
-    `3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /XObject << /Im0 4 0 R >> >> /MediaBox [0 0 ${width} ${height}] /Contents 5 0 R >>\nendobj\n`
-  );
+  pages.forEach((page, index) => {
+    const pageObj = 3 + index * 3;
+    const imageObj = pageObj + 1;
+    const contentObj = pageObj + 2;
+    const imageName = `/Im${index}`;
 
-  startObject();
-  pushString(
-    `4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imageBytes.length} >>\nstream\n`
-  );
-  push(imageBytes);
-  pushString('\nendstream\nendobj\n');
+    startObject();
+    pushString(
+      `${pageObj} 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /XObject << ${imageName} ${imageObj} 0 R >> >> /MediaBox [0 0 ${page.width} ${page.height}] /Contents ${contentObj} 0 R >>\nendobj\n`
+    );
 
-  const contentStream = `q
-${width} 0 0 ${height} 0 0 cm
-/Im0 Do
+    startObject();
+    pushString(
+      `${imageObj} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${page.width} /Height ${page.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${page.imageBytes.length} >>\nstream\n`
+    );
+    push(page.imageBytes);
+    pushString('\nendstream\nendobj\n');
+
+    const contentStream = `q
+${page.width} 0 0 ${page.height} 0 0 cm
+${imageName} Do
 Q
 `;
-  const contentBytes = encoder.encode(contentStream);
+    const contentBytes = encoder.encode(contentStream);
 
-  startObject();
-  pushString(`5 0 obj\n<< /Length ${contentBytes.length} >>\nstream\n`);
-  push(contentBytes);
-  pushString('endstream\nendobj\n');
+    startObject();
+    pushString(`${contentObj} 0 obj\n<< /Length ${contentBytes.length} >>\nstream\n`);
+    push(contentBytes);
+    pushString('endstream\nendobj\n');
+  });
 
   const xrefOffset = currentOffset;
-  pushString('xref\n0 6\n0000000000 65535 f \n');
+  pushString(`xref\n0 ${totalObjects + 1}\n0000000000 65535 f \n`);
   offsets.forEach((offset) => {
     pushString(`${offset.toString().padStart(10, '0')} 00000 n \n`);
   });
-  pushString('trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n');
+  pushString('trailer\n<< /Size ');
+  pushString(String(totalObjects + 1));
+  pushString(' /Root 1 0 R >>\nstartxref\n');
   pushString(`${xrefOffset}\n%%EOF`);
 
-  return new Blob([concatUint8Arrays(chunks)], { type: 'application/pdf' });
-}
-
-function concatUint8Arrays(arrays: Uint8Array[]) {
-  const totalLength = arrays.reduce((acc, array) => acc + array.length, 0);
+  const totalLength = chunks.reduce((acc, arr) => acc + arr.length, 0);
   const merged = new Uint8Array(totalLength);
   let offset = 0;
-  arrays.forEach((array) => {
-    merged.set(array, offset);
-    offset += array.length;
+  chunks.forEach((arr) => {
+    merged.set(arr, offset);
+    offset += arr.length;
   });
-  return merged;
+
+  return new Blob([merged], { type: 'application/pdf' });
 }
 
 async function loadImageElement(src: string) {

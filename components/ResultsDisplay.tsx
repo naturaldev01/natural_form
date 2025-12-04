@@ -85,7 +85,7 @@ export default function ResultsDisplay({
       await saveToDatabase();
 
       // PDF oluştur ve mail gönder
-      const pdfBlob = await generatePdf(results[0], `${contactInfo.firstName} ${contactInfo.lastName}`);
+      const pdfBlob = await generatePdf(results, `${contactInfo.firstName} ${contactInfo.lastName}`);
       const pdfBase64 = await blobToBase64(pdfBlob);
       const filename = `natural-clinic-${Date.now()}.pdf`;
       const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
@@ -129,7 +129,7 @@ export default function ResultsDisplay({
       await saveToDatabase();
 
       // PDF oluştur
-      const pdfBlob = await generatePdf(results[0], `${contactInfo.firstName} ${contactInfo.lastName}`);
+      const pdfBlob = await generatePdf(results, `${contactInfo.firstName} ${contactInfo.lastName}`);
       const pdfBase64 = await blobToBase64(pdfBlob);
       const filename = `natural-clinic-${contactInfo.firstName.toLowerCase()}-${contactInfo.lastName.toLowerCase()}.pdf`;
       const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
@@ -450,9 +450,14 @@ async function blobToBase64(blob: Blob) {
   });
 }
 
-async function generatePdf(result: { originalUrl: string; transformedUrl: string }, contactName: string) {
-  const canvas = await renderResultCanvas(result, contactName);
-  return createPdfFromCanvas(canvas);
+async function generatePdf(results: { originalUrl: string; transformedUrl: string }[], contactName: string) {
+  if (!results.length) throw new Error('No results to export');
+  const canvases: HTMLCanvasElement[] = [];
+  for (const result of results) {
+    const canvas = await renderResultCanvas(result, contactName);
+    canvases.push(canvas);
+  }
+  return createPdfFromCanvases(canvases);
 }
 
 async function renderResultCanvas(result: { originalUrl: string; transformedUrl: string }, contactName: string) {
@@ -631,7 +636,7 @@ function drawImageWithinBox(
   ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
 }
 
-function createPdfFromCanvas(canvas: HTMLCanvasElement) {
+function canvasToImageBytes(canvas: HTMLCanvasElement) {
   const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
   const base64 = dataUrl.replace(/^data:image\/jpeg;base64,/, '');
   const binary = atob(base64);
@@ -639,10 +644,10 @@ function createPdfFromCanvas(canvas: HTMLCanvasElement) {
   for (let i = 0; i < binary.length; i++) {
     imgBytes[i] = binary.charCodeAt(i);
   }
-  return createPdfFromImageBytes(imgBytes, canvas.width, canvas.height);
+  return imgBytes;
 }
 
-function createPdfFromImageBytes(imageBytes: Uint8Array, width: number, height: number) {
+function createPdfFromCanvases(canvases: HTMLCanvasElement[]) {
   const encoder = new TextEncoder();
   const chunks: Uint8Array[] = [];
   const offsets: number[] = [];
@@ -663,56 +668,74 @@ function createPdfFromImageBytes(imageBytes: Uint8Array, width: number, height: 
 
   pushString('%PDF-1.3\n');
 
+  const pages = canvases.map((canvas) => ({
+    width: canvas.width,
+    height: canvas.height,
+    imageBytes: canvasToImageBytes(canvas),
+  }));
+
+  const totalPages = pages.length;
+  const totalObjects = 2 + totalPages * 3;
+
   startObject();
   pushString('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
 
   startObject();
-  pushString('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+  const kidsRefs = pages
+    .map((_, index) => `${3 + index * 3} 0 R`)
+    .join(' ');
+  pushString(`2 0 obj\n<< /Type /Pages /Kids [${kidsRefs}] /Count ${totalPages} >>\nendobj\n`);
 
-  startObject();
-  pushString(
-    `3 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /XObject << /Im0 4 0 R >> >> /MediaBox [0 0 ${width} ${height}] /Contents 5 0 R >>\nendobj\n`
-  );
+  pages.forEach((page, index) => {
+    const pageObj = 3 + index * 3;
+    const imageObj = pageObj + 1;
+    const contentObj = pageObj + 2;
+    const imageName = `/Im${index}`;
 
-  startObject();
-  pushString(
-    `4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imageBytes.length} >>\nstream\n`
-  );
-  push(imageBytes);
-  pushString('\nendstream\nendobj\n');
+    startObject();
+    pushString(
+      `${pageObj} 0 obj\n<< /Type /Page /Parent 2 0 R /Resources << /XObject << ${imageName} ${imageObj} 0 R >> >> /MediaBox [0 0 ${page.width} ${page.height}] /Contents ${contentObj} 0 R >>\nendobj\n`
+    );
 
-  const contentStream = `q
-${width} 0 0 ${height} 0 0 cm
-/Im0 Do
+    startObject();
+    pushString(
+      `${imageObj} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${page.width} /Height ${page.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${page.imageBytes.length} >>\nstream\n`
+    );
+    push(page.imageBytes);
+    pushString('\nendstream\nendobj\n');
+
+    const contentStream = `q
+${page.width} 0 0 ${page.height} 0 0 cm
+${imageName} Do
 Q
 `;
-  const contentBytes = encoder.encode(contentStream);
+    const contentBytes = encoder.encode(contentStream);
 
-  startObject();
-  pushString(`5 0 obj\n<< /Length ${contentBytes.length} >>\nstream\n`);
-  push(contentBytes);
-  pushString('endstream\nendobj\n');
+    startObject();
+    pushString(`${contentObj} 0 obj\n<< /Length ${contentBytes.length} >>\nstream\n`);
+    push(contentBytes);
+    pushString('endstream\nendobj\n');
+  });
 
   const xrefOffset = currentOffset;
-  pushString('xref\n0 6\n0000000000 65535 f \n');
+  pushString(`xref\n0 ${totalObjects + 1}\n0000000000 65535 f \n`);
   offsets.forEach((offset) => {
     pushString(`${offset.toString().padStart(10, '0')} 00000 n \n`);
   });
-  pushString('trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n');
+  pushString('trailer\n<< /Size ');
+  pushString(String(totalObjects + 1));
+  pushString(' /Root 1 0 R >>\nstartxref\n');
   pushString(`${xrefOffset}\n%%EOF`);
 
-  return new Blob([concatUint8Arrays(chunks)], { type: 'application/pdf' });
-}
-
-function concatUint8Arrays(arrays: Uint8Array[]) {
-  const totalLength = arrays.reduce((acc, array) => acc + array.length, 0);
+  const totalLength = chunks.reduce((acc, arr) => acc + arr.length, 0);
   const merged = new Uint8Array(totalLength);
   let offset = 0;
-  arrays.forEach((array) => {
-    merged.set(array, offset);
-    offset += array.length;
+  chunks.forEach((arr) => {
+    merged.set(arr, offset);
+    offset += arr.length;
   });
-  return merged;
+
+  return new Blob([merged], { type: 'application/pdf' });
 }
 
 async function loadImageElement(src: string) {

@@ -695,6 +695,16 @@ export const TRANSLATIONS = {
     fr: 'Aperçu IA',
     zh: 'AI 预览',
   },
+  'results.gallery.imageLabel': {
+    en: 'Image {{index}}',
+    tr: '{{index}}. Görsel',
+    ar: 'الصورة {{index}}',
+    ru: 'Изображение {{index}}',
+    es: 'Imagen {{index}}',
+    it: 'Immagine {{index}}',
+    fr: 'Image {{index}}',
+    zh: '第 {{index}} 张图像',
+  },
   'pdf.dear': {
     en: 'Dear {{name}},',
     tr: 'Sevgili {{name}},',
