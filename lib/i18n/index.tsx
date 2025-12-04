@@ -16,6 +16,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { usePathname } from 'next/navigation';
 
 const STORAGE_KEY = 'nc-language';
 
@@ -30,21 +31,6 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 const isSupported = (value: string): value is SupportedLanguage =>
   SUPPORTED_LANGUAGES.some((lang) => lang.code === value);
 
-const resolveLanguage = (raw?: string): SupportedLanguage => {
-  if (!raw) return FALLBACK_LANGUAGE;
-  const normalized = raw.toLowerCase();
-  const alias = LANGUAGE_ALIASES[normalized];
-  if (alias && isSupported(alias)) return alias;
-  if (isSupported(normalized as SupportedLanguage)) {
-    return normalized as SupportedLanguage;
-  }
-  const short = normalized.split('-')[0];
-  if (isSupported(short as SupportedLanguage)) {
-    return short as SupportedLanguage;
-  }
-  return FALLBACK_LANGUAGE;
-};
-
 const formatString = (
   template: string,
   replacements?: Record<string, string>
@@ -56,20 +42,42 @@ const formatString = (
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] =
     useState<SupportedLanguage>(FALLBACK_LANGUAGE);
+  const pathname = usePathname();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const segments = pathname?.split('/').filter(Boolean) ?? [];
+    const pathLang = segments[0];
+    if (pathLang && isSupported(pathLang)) {
+      setLanguageState(pathLang as SupportedLanguage);
+      document.documentElement.lang = pathLang;
+      window.localStorage.setItem(STORAGE_KEY, pathLang);
+      return;
+    }
+
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored && isSupported(stored)) {
       setLanguageState(stored);
       document.documentElement.lang = stored;
       return;
     }
-    const detected = resolveLanguage(navigator.language);
+
+    const detected = (() => {
+      const navigatorLang = navigator.language;
+      const normalized = navigatorLang?.toLowerCase();
+      if (normalized && isSupported(normalized as SupportedLanguage)) {
+        return normalized as SupportedLanguage;
+      }
+      const short = normalized?.split('-')[0];
+      if (short && isSupported(short as SupportedLanguage)) {
+        return short as SupportedLanguage;
+      }
+      return FALLBACK_LANGUAGE;
+    })();
     setLanguageState(detected);
     document.documentElement.lang = detected;
     window.localStorage.setItem(STORAGE_KEY, detected);
-  }, []);
+  }, [pathname]);
 
   const setLanguage = useCallback((next: SupportedLanguage) => {
     setLanguageState(next);
