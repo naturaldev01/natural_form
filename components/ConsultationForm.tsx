@@ -917,7 +917,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       <form onSubmit={handleSubmit} className="space-y-4">
         
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
+          <label className="block text-sm sm:text-base font-medium text-gray-700 mb-3">
            
           </label>
           <div className="flex gap-4">
@@ -1044,7 +1044,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
             />
             <label
               htmlFor="image"
-              className="flex flex-col items-center justify-center w-full h-56 border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-white hover:from-white hover:to-gray-50 transition-all shadow-inner"
+              className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-white hover:from-white hover:to-gray-50 transition-all shadow-inner h-48 sm:h-56"
             >
               {previews.length > 0 ? (
                 <div className="w-full h-full p-4 overflow-y-auto">
@@ -1074,19 +1074,23 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
               ) : (
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
                   <Upload className="w-12 h-12 text-[#006069] mb-4" />
-                  <p className="mb-2 text-sm text-gray-600">
+                  <p className="mb-2 text-sm text-gray-600 sm:text-base">
                     <span className="font-semibold">{t('form.upload.cta')}</span>{' '}
                     {t('form.upload.dragHint')}
                   </p>
-                  <p className="text-xs text-gray-500">{t('form.upload.fileInfo')}</p>
-                  <p className="text-xs text-gray-400 mt-1">{t('form.upload.multiInfo')}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-500">
+                    {t('form.upload.fileInfo')}
+                  </p>
+                  <p className="text-[10px] sm:text-xs text-gray-400 mt-1">
+                    {t('form.upload.multiInfo')}
+                  </p>
                 </div>
               )}
             </label>
           </div>
         </div>
 
-        <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-200 shadow-sm">
+        <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-200 shadow-sm text-xs sm:text-sm">
           <input
             type="checkbox"
             id="consent"
