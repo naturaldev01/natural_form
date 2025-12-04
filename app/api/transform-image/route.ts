@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 
 // CORS - restrict to same origin in production
-const allowedOrigins = process.env.NODE_ENV === 'production' 
+const allowedOrigins = process.env.NODE_ENV === 'production'
   ? [process.env.NEXT_PUBLIC_APP_URL || ''].filter(Boolean)
   : ['*'];
 
@@ -13,13 +13,49 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
+/* -------------------------------------------------------
+   BASE PROMPTS (revized & clinic-grade)
+------------------------------------------------------- */
 const prompts: Record<string, string> = {
-  teeth:
-    "Transform this image to show perfect, white, aligned teeth. Make the teeth look naturally beautiful and professionally whitened. Keep the person's face and features exactly the same, only improve the teeth to look like they've had professional dental work. Maintain realistic lighting and natural appearance.",
-  hair:
-    "Transform this image to show fuller, healthier, more voluminous hair. Make the hair look professionally styled and treated. Keep the person's face and features exactly the same, only improve the hair to look thicker, healthier, and more vibrant. Maintain realistic lighting and natural appearance.",
+  teeth: `
+Enhance only the teeth of the person in this photo.
+
+Goals:
+- Make the teeth look straight, well aligned and naturally shaped.
+- Whiten and refine the teeth to a professional but realistic shade.
+- Improve symmetry and surface quality while keeping a natural enamel texture.
+
+Strict rules:
+- Do NOT change the person's face, lips, eyes, skin tone or expression.
+- Do NOT change the mouth position or smile width.
+- Do NOT modify the hair, background, clothing or lighting.
+- Avoid overly bright, glowing or plastic-looking teeth.
+
+Target look:
+- A realistic, high-end dental clinic “after treatment” result.
+`.trim(),
+
+  hair: `
+Enhance only the hair of the person in this photo.
+
+Goals:
+- Increase fullness, volume and healthy appearance.
+- Reduce scalp visibility while preserving realism.
+- Smooth frizz and flyaways while keeping a natural texture and original color.
+
+Strict rules:
+- Do NOT change the person's face, features, skin or expression.
+- Do NOT modify the background, clothing or lighting.
+- Avoid unrealistic shine or beauty filters.
+
+Target look:
+- A natural, clinic-quality “after treatment” improvement.
+`.trim(),
 };
 
+/* -------------------------------------------------------
+   GEMINI MODELS
+------------------------------------------------------- */
 async function generateWithGeminiModel(
   modelName: string,
   prompt: string,
@@ -31,9 +67,7 @@ async function generateWithGeminiModel(
     `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [
           {
@@ -66,23 +100,21 @@ async function generateWithGeminiModel(
   const geminiData = await response.json();
   const candidate = geminiData.candidates?.[0];
 
-  if (!candidate) {
-    return { success: false as const, error: 'No candidates returned' };
-  }
+  if (!candidate) return { success: false as const, error: 'No candidates returned' };
 
   const parts = candidate.content?.parts || [];
   for (const part of parts) {
-    if (part.inline_data?.data) {
-      return { success: true as const, data: part.inline_data.data };
-    }
-    if (part.inlineData?.data) {
-      return { success: true as const, data: part.inlineData.data };
+    if (part.inline_data?.data || part.inlineData?.data) {
+      return { success: true, data: part.inline_data?.data || part.inlineData?.data };
     }
   }
 
   return { success: false as const, error: 'No inline image data in response' };
 }
 
+/* -------------------------------------------------------
+   TEETH SHADE/STYLES
+------------------------------------------------------- */
 const teethShadeDescriptions: Record<string, string> = {
   '0M1': 'the ultra bright 0M1 bleach shade',
   '0M2': 'the vibrant 0M2 bleach shade',
@@ -106,19 +138,23 @@ const teethShadeDescriptions: Record<string, string> = {
 };
 
 const teethStyleDescriptions: Record<string, string> = {
-  'AggressiveStyle': 'aggressive style with bold incisal edges',
-  'DominantStyle': 'dominant style with pronounced central incisors',
-  'EnhancedStyle': 'enhanced style with refined contours',
-  'FocusedStyle': 'focused style emphasizing symmetry',
-  'FunctionalStyle': 'functional style with practical contours',
-  'HollywoodStyle': 'Hollywood style full, glamorous veneers',
-  'MatureStyle': 'mature style with softened anatomy',
-  'NaturalStyle': 'natural style with gentle texture',
-  'OvalStyle': 'oval style with rounded corners',
-  'SoftenedStyle': 'softened style with subtle transitions',
-  'VigorousStyle': 'vigorous style with energetic shapes',
-  'YouthfulStyle': 'youthful style with playful curvature',
+  AggressiveStyle: 'aggressive style with bold incisal edges',
+  DominantStyle: 'dominant style with pronounced central incisors',
+  EnhancedStyle: 'enhanced style with refined contours',
+  FocusedStyle: 'focused style emphasizing symmetry',
+  FunctionalStyle: 'functional style with practical contours',
+  HollywoodStyle: 'Hollywood style full, glamorous veneers',
+  MatureStyle: 'mature style with softened anatomy',
+  NaturalStyle: 'natural style with gentle texture',
+  OvalStyle: 'oval style with rounded corners',
+  SoftenedStyle: 'softened style with subtle transitions',
+  VigorousStyle: 'vigorous style with energetic shapes',
+  YouthfulStyle: 'youthful style with playful curvature',
 };
+
+/* Auto validation keys */
+const VALID_TEETH_SHADES = Object.keys(teethShadeDescriptions);
+const VALID_TEETH_STYLES = Object.keys(teethStyleDescriptions);
 
 const buildResponse = (body: Record<string, unknown>, status = 200) =>
   NextResponse.json(body, {
@@ -130,11 +166,11 @@ const buildResponse = (body: Record<string, unknown>, status = 200) =>
   });
 
 export function OPTIONS() {
-  return new Response(null, {
-    status: 200,
-    headers: corsHeaders,
-  });
+  return new Response(null, { status: 200, headers: corsHeaders });
 }
+
+const URL_REGEX = /^https?:\/\/.+/i;
+const VALID_TREATMENT_TYPES = ['teeth', 'hair'];
 
 const describeTeethShade = (value?: string) =>
   value ? teethShadeDescriptions[value] ?? value : undefined;
@@ -142,50 +178,34 @@ const describeTeethShade = (value?: string) =>
 const describeTeethStyle = (value?: string) =>
   value ? teethStyleDescriptions[value] ?? value : undefined;
 
-// URL validation
-const URL_REGEX = /^https?:\/\/.+/i;
-// Valid treatment types
-const VALID_TREATMENT_TYPES = ['teeth', 'hair'];
-// Valid teeth shades
-const VALID_TEETH_SHADES = ['0M1', '0M2', '0M3', 'A1', 'A2', 'A3', 'A3.5', 'A4', 'B1', 'B2', 'B3', 'B4', 'C1', 'C2', 'C3', 'C4', 'D2', 'D3', 'D4'];
-// Valid teeth styles
-const VALID_TEETH_STYLES = ['AggressiveStyle', 'DominantStyle', 'EnhancedStyle', 'FocusedStyle', 'FunctionalStyle', 'HollywoodStyle', 'MatureStyle', 'NaturalStyle', 'OvalStyle', 'SoftenedStyle', 'VigorousStyle', 'YouthfulStyle'];
-
+/* -------------------------------------------------------
+   MAIN ROUTE HANDLER
+------------------------------------------------------- */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { imageUrl, treatmentType, teethShade, teethStyle } = body;
 
-    // Input validation
+    // Validate image
     if (!imageUrl || typeof imageUrl !== 'string') {
       return buildResponse({ error: 'Image URL is required' }, 400);
     }
-
     if (!URL_REGEX.test(imageUrl)) {
       return buildResponse({ error: 'Invalid image URL format' }, 400);
     }
-
-    // Only allow URLs from trusted domains (Supabase storage)
     const allowedDomains = ['supabase.co', 'supabase.in'];
-    try {
-      const urlObj = new URL(imageUrl);
-      const isAllowed = allowedDomains.some(domain => urlObj.hostname.endsWith(domain));
-      if (!isAllowed) {
-        return buildResponse({ error: 'Image URL must be from Supabase storage' }, 400);
-      }
-    } catch {
-      return buildResponse({ error: 'Invalid image URL' }, 400);
+    const urlObj = new URL(imageUrl);
+    const isAllowed = allowedDomains.some(domain => urlObj.hostname.endsWith(domain));
+    if (!isAllowed) {
+      return buildResponse({ error: 'Image URL must be from Supabase storage' }, 400);
     }
 
-    if (!treatmentType || typeof treatmentType !== 'string') {
-      return buildResponse({ error: 'Treatment type is required' }, 400);
-    }
-
+    // Treatment type
     if (!VALID_TREATMENT_TYPES.includes(treatmentType)) {
       return buildResponse({ error: 'Invalid treatment type. Must be "teeth" or "hair"' }, 400);
     }
 
-    // Validate teeth-specific fields
+    // Teeth validation
     if (treatmentType === 'teeth') {
       if (teethShade && !VALID_TEETH_SHADES.includes(teethShade)) {
         return buildResponse({ error: 'Invalid teeth shade value' }, 400);
@@ -197,7 +217,7 @@ export async function POST(req: Request) {
 
     const geminiApiKey = process.env.GEMINI_API_KEY;
     if (!geminiApiKey) {
-      return buildResponse({ error: 'Gemini API key not configured' }, 500);
+      return buildResponse({ error: 'No image generation API is configured' }, 500);
     }
 
     const imageResponse = await fetch(imageUrl);
@@ -206,15 +226,11 @@ export async function POST(req: Request) {
     }
 
     const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
-    
-    // Validate content type is an image
     if (!contentType.startsWith('image/')) {
       return buildResponse({ error: 'URL does not point to an image' }, 400);
     }
 
     const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-    
-    // Check image size (max 10MB)
     const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
     if (imageBuffer.length > MAX_IMAGE_SIZE) {
       return buildResponse({ error: 'Image too large (max 10MB)' }, 400);
@@ -223,28 +239,32 @@ export async function POST(req: Request) {
     const base64Image = imageBuffer.toString('base64');
     const mimeType = contentType;
 
-    let prompt =
-      prompts[treatmentType as keyof typeof prompts] ??
-      prompts.teeth;
+    /* -------- Build Prompt -------- */
+    let prompt = prompts[treatmentType];
 
     if (treatmentType === 'teeth') {
-      const shadeDescription = describeTeethShade(teethShade);
-      const styleDescription = describeTeethStyle(teethStyle);
+      const shadeDesc = describeTeethShade(teethShade);
+      const styleDesc = describeTeethStyle(teethStyle);
 
-      if (shadeDescription || styleDescription) {
-        prompt += '\n';
+      if (shadeDesc || styleDesc) {
+        prompt += `\n\nApply the following specific settings:\n`;
       }
-      if (shadeDescription) {
-        prompt += `Use a tooth color that closely matches ${shadeDescription}. `;
+      if (shadeDesc) {
+        prompt += `- Tooth shade: ${shadeDesc} (shade code: ${teethShade}).\n`;
       }
-      if (styleDescription) {
-        prompt += `Shape the smile to reflect a ${styleDescription} aesthetic.`;
+      if (styleDesc) {
+        prompt += `- Tooth style: ${styleDesc} (style code: ${teethStyle}).\n`;
+      }
+      if (shadeDesc || styleDesc) {
+        prompt += `\nEnsure the results remain natural and clinically realistic.\n`;
       }
     }
 
-    const geminiModels = ['gemini-3-pro-image-preview', 'gemini-2.5-flash-image'];
-    let transformedImageData: string | null = null;
+    /* -------- Generate With Gemini -------- */
     const attemptErrors: string[] = [];
+    const geminiModels = ['gemini-2.5-flash-image', 'gemini-3-pro-image-preview'];
+
+    let transformedImageData: string | null = null;
 
     for (const modelName of geminiModels) {
       const result = await generateWithGeminiModel(
@@ -257,6 +277,7 @@ export async function POST(req: Request) {
 
       if (result.success) {
         transformedImageData = result.data;
+        console.log(`[transform-image] provider=gemini model=${modelName}`);
         break;
       }
 
@@ -265,21 +286,8 @@ export async function POST(req: Request) {
 
     if (!transformedImageData) {
       return buildResponse(
-        {
-          error: 'Failed to process image with Gemini API',
-          details: attemptErrors.join(' | '),
-        },
+        { error: 'Failed to process image with Gemini API', details: attemptErrors.join(' | ') },
         500
-      );
-    }
-
-    if (!transformedImageData) {
-      return buildResponse(
-        {
-          transformedUrl: imageUrl,
-          warning: 'Image transformation completed but no new image was generated',
-        },
-        200
       );
     }
 
