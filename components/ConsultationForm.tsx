@@ -1025,7 +1025,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             {t('form.upload.label')}{' '}
             {formData.images.length > 0 &&
               `(${t('form.upload.selectedCount', {
@@ -1044,7 +1044,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
             />
             <label
               htmlFor="image"
-              className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-white hover:from-white hover:to-gray-50 transition-all shadow-inner h-40 sm:h-56"
+              className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-white hover:from-white hover:to-gray-50 transition-all shadow-inner py-4 sm:h-56"
             >
               {previews.length > 0 ? (
                 <div className="w-full h-full p-4 overflow-y-auto">
@@ -1072,16 +1072,16 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center pt-5 pb-4">
-                  <Upload className="w-12 h-12 text-[#006069] mb-4" />
-                  <p className="mb-1 text-xs text-gray-600 sm:text-sm">
+                <div className="flex w-full flex-col items-center justify-center text-center px-4 space-y-1 sm:space-y-2">
+                  <Upload className="w-5 h-5 text-[#006069] mb-1 sm:mb-2" />
+                  <p className="text-xs text-gray-600 sm:text-sm">
                     <span className="font-semibold">{t('form.upload.cta')}</span>{' '}
                     {t('form.upload.dragHint')}
                   </p>
-                  <p className="text-[10px] sm:text-xs text-gray-500 text-center">
+                  <p className="text-[10px] sm:text-xs text-gray-500">
                     {t('form.upload.fileInfo')}
                   </p>
-                  <p className="text-[9px] sm:text-xs text-gray-400 mt-0.5 text-center">
+                  <p className="text-[9px] sm:text-xs text-gray-400">
                     {t('form.upload.multiInfo')}
                   </p>
                 </div>
@@ -1099,7 +1099,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
             required
             className="mt-1 w-5 h-5 text-[#006069] bg-white border-gray-300 rounded focus:ring-[#006069] focus:ring-2"
           />
-          <label htmlFor="consent" className="text-sm text-gray-700 cursor-pointer">
+          <label htmlFor="consent" className="text-xs text-gray-700 cursor-pointer">
             {t('form.consent.text')}
           </label>
         </div>
