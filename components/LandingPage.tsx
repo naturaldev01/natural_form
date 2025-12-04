@@ -16,9 +16,9 @@ export default function LandingPage({ initialTreatmentType = 'teeth' }: LandingP
       <div className="w-full max-w-4xl mx-auto px-4 pt-4 flex justify-end">
         <LanguageSwitcher />
       </div>
-      <main className="flex-1 w-full px-4 py-6 sm:py-10">
-        <div className="w-full max-w-4xl mx-auto space-y-5">
-          <div className="text-center space-y-3">
+      <main className="flex-1 w-full px-4 py-4 sm:py-8">
+        <div className="w-full max-w-4xl mx-auto space-y-4 sm:space-y-6">
+          <div className="text-center space-y-2.5 sm:space-y-3">
             <div className="flex justify-center items-start gap-3 flex-wrap">
               <Image
                 src="https://natural.clinic/wp-content/uploads/2023/07/Natural_logo_green-01.png.webp"
@@ -34,19 +34,19 @@ export default function LandingPage({ initialTreatmentType = 'teeth' }: LandingP
               </div>
             </div>
             <div>
-              <p className="text-2xl text-gray-800">{t('hero.title')}</p>
-              <p className="text-gray-600 text-xs">{t('hero.subtitle')}</p>
+              <p className="text-xl sm:text-2xl text-gray-800">{t('hero.title')}</p>
+              <p className="text-gray-600 text-[11px] sm:text-sm">{t('hero.subtitle')}</p>
             </div>
            
           </div>
 
-          <div className="bg-white rounded-2xl p-4 md:p-8 shadow-2xl border border-gray-100">
+          <div className="bg-white rounded-2xl p-3 sm:p-5 md:p-8 shadow-2xl border border-gray-100">
             <div className="h-full">
               <ConsultationForm initialTreatmentType={initialTreatmentType} />
             </div>
           </div>
 
-          <div className="text-center text-gray-500 text-xs sm:text-sm">
+          <div className="text-center text-gray-500 text-[11px] sm:text-sm">
             <p>{t('hero.privacy')}</p>
           </div>
         </div>

@@ -914,9 +914,9 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
         
-        <div className="space-y-2">
+        <div className="space-y-1.5 sm:space-y-2">
           <label className="block text-sm sm:text-base font-medium text-gray-700 mb-3">
            
           </label>
@@ -947,7 +947,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         </div>
 
         {formData.treatmentType === 'teeth' && (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <div>
@@ -1144,7 +1144,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
             {/* Contact Form Modal - Centered on top */}
             <div className="relative z-10 flex items-center justify-center py-8">
-              <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 space-y-6 animate-in zoom-in duration-300 border border-gray-100">
+              <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 sm:p-8 space-y-5 sm:space-y-6 animate-in zoom-in duration-300 border border-gray-100">
                 <div className="text-center">
                   <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#006069] to-[#004750] rounded-full mb-4">
                     <Mail className="w-8 h-8 text-white" />
@@ -1161,7 +1161,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                   </p>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="modal-firstName" className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -1277,8 +1277,8 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 space-y-6 animate-in zoom-in duration-300">
-            <div className="text-center space-y-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 sm:p-8 space-y-5 sm:space-y-6 animate-in zoom-in duration-300">
+            <div className="text-center space-y-3 sm:space-y-4">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full">
                 <CheckCircle className="w-10 h-10 text-green-600" />
               </div>
@@ -1361,7 +1361,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                 {/* Before/After Grid */}
                 <div className="grid md:grid-cols-2 gap-8">
                   {/* Before */}
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
                         <span className="text-gray-600 font-bold">1</span>
@@ -1378,7 +1378,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                   </div>
 
                   {/* After */}
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-[#006069] flex items-center justify-center">
                         <span className="text-white font-bold">2</span>
@@ -1456,7 +1456,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
       {showShadeGuide && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-6 space-y-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-5 sm:p-6 space-y-3 sm:space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-[#006069] uppercase tracking-wide">
@@ -1490,7 +1490,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
       {showStyleGuide && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-6 space-y-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-5 sm:p-6 space-y-3 sm:space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-[#006069] uppercase tracking-wide">
