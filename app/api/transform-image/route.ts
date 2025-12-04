@@ -35,22 +35,32 @@ Target look:
 - A realistic, high-end dental clinic “after treatment” result.
 `.trim(),
 
-  hair: `
-Enhance only the hair of the person in this photo.
+hair: `
+Enhance ONLY the hair of the person in this photo.
 
-Goals:
-- Increase fullness, volume and healthy appearance.
-- Reduce scalp visibility while preserving realism.
-- Smooth frizz and flyaways while keeping a natural texture and original color.
+General Goals:
+- Improve fullness, density, and overall healthy appearance.
+- Reduce visible scalp while maintaining realism.
+- Smooth frizz/flyaways while keeping the natural texture and original color.
+- Respect the person’s natural hair type (straight, wavy, curly, coily, afro-textured).
 
-Strict rules:
-- Do NOT change the person's face, features, skin or expression.
-- Do NOT modify the background, clothing or lighting.
-- Avoid unrealistic shine or beauty filters.
+Ethnic & Texture Adaptation:
+- Automatically detect the individual's hair type and ethnicity-related characteristics.
+- For afro-textured or tightly coiled hair: increase volume and definition without changing the curl pattern; avoid artificial shine or straightening.
+- For curly/wavy hair: enhance curl definition and reduce frizz without altering curl size.
+- For straight or fine hair: add subtle density and reduced scalp visibility without creating unnatural thickness.
+- Maintain natural hairline shape, hair texture and growth direction for all hair types.
 
-Target look:
-- A natural, clinic-quality “after treatment” improvement.
-`.trim(),
+Strict Rules:
+- Do NOT change the person’s face, skin, features or expression.
+- Do NOT modify background, clothing, accessories or lighting.
+- Avoid unrealistic shine, smoothing or beauty filters.
+- Preserve the original color, ethnic characteristics and texture of the hair.
+
+Target Look:
+- A natural, clinic-quality "after treatment" improvement that stays true to the person’s real hair.
+`.trim()
+
 };
 
 /* -------------------------------------------------------
