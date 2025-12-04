@@ -1044,7 +1044,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
             />
             <label
               htmlFor="image"
-              className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-white hover:from-white hover:to-gray-50 transition-all shadow-inner h-48 sm:h-56"
+              className="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-white hover:from-white hover:to-gray-50 transition-all shadow-inner h-40 sm:h-56"
             >
               {previews.length > 0 ? (
                 <div className="w-full h-full p-4 overflow-y-auto">
@@ -1072,16 +1072,16 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                <div className="flex flex-col items-center justify-center pt-5 pb-4">
                   <Upload className="w-12 h-12 text-[#006069] mb-4" />
-                  <p className="mb-2 text-sm text-gray-600 sm:text-base">
+                  <p className="mb-1 text-xs text-gray-600 sm:text-sm">
                     <span className="font-semibold">{t('form.upload.cta')}</span>{' '}
                     {t('form.upload.dragHint')}
                   </p>
-                  <p className="text-[10px] sm:text-xs text-gray-500">
+                  <p className="text-[10px] sm:text-xs text-gray-500 text-center">
                     {t('form.upload.fileInfo')}
                   </p>
-                  <p className="text-[10px] sm:text-xs text-gray-400 mt-1">
+                  <p className="text-[9px] sm:text-xs text-gray-400 mt-0.5 text-center">
                     {t('form.upload.multiInfo')}
                   </p>
                 </div>
@@ -1090,7 +1090,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
           </div>
         </div>
 
-        <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-2xl border border-gray-200 shadow-sm text-xs sm:text-sm">
+        <div className="flex items-start gap-2 p-2 sm:p-3 bg-gray-50 rounded-2xl border border-gray-200 shadow-sm text-[10px] sm:text-sm mt-4">
           <input
             type="checkbox"
             id="consent"
