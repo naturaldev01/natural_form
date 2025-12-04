@@ -1090,20 +1090,6 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
           </div>
         </div>
 
-        <div className="flex items-start gap-2 p-2 sm:p-3 bg-gray-50 rounded-2xl border border-gray-200 shadow-sm text-[10px] sm:text-sm mt-4">
-          <input
-            type="checkbox"
-            id="consent"
-            checked={consentAccepted}
-            onChange={(e) => setConsentAccepted(e.target.checked)}
-            required
-            className="mt-1 w-5 h-5 text-[#006069] bg-white border-gray-300 rounded focus:ring-[#006069] focus:ring-2"
-          />
-          <label htmlFor="consent" className="text-xs text-gray-700 cursor-pointer">
-            {t('form.consent.text')}
-          </label>
-        </div>
-
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {error}
@@ -1124,6 +1110,20 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
             t('form.submit.label')
           )}
         </button>
+
+        <div className="flex items-start gap-2 p-2 sm:p-3 bg-gray-50 rounded-2xl border border-gray-200 shadow-sm text-[10px] sm:text-sm">
+          <input
+            type="checkbox"
+            id="consent"
+            checked={consentAccepted}
+            onChange={(e) => setConsentAccepted(e.target.checked)}
+            required
+            className="mt-1 w-5 h-5 text-[#006069] bg-white border-gray-300 rounded focus:ring-[#006069] focus:ring-2"
+          />
+          <label htmlFor="consent" className="text-xs text-gray-700 cursor-pointer">
+            {t('form.consent.text')}
+          </label>
+        </div>
       </form>
 
       {/* Contact Modal with Blurred Background Image */}
