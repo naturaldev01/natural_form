@@ -272,7 +272,10 @@ export async function POST(req: Request) {
 
     /* -------- Generate With Gemini -------- */
     const attemptErrors: string[] = [];
-    const geminiModels = ['gemini-2.5-flash-image', 'gemini-3-pro-image-preview'];
+    const geminiModels =
+      treatmentType === 'hair'
+        ? ['gemini-3-pro-image-preview', 'gemini-2.5-flash-image']
+        : ['gemini-2.5-flash-image', 'gemini-3-pro-image-preview'];
 
     let transformedImageData: string | null = null;
 
