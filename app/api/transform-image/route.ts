@@ -80,18 +80,18 @@ Goals:
 Strict rules:
 - Do NOT change the person's face, lips, eyes, skin tone or expression.
 - Do NOT change the mouth position or smile width.
-- Do NOT modify the hair, background, clothing or lighting.
-- Avoid overly bright, glowing or plastic-looking teeth.
+ - Do NOT modify the hair, background, clothing or lighting.
+ - Avoid overly bright, glowing or plastic-looking teeth.
 
 Target look:
 - A realistic, high-end dental clinic “after treatment” result.
 `.trim(),
 
-hair: 
+hair_base: 
 `Role: Advanced Clinical Hair Restoration Simulator
 
 Task:
-Realistically enhance the hair density of the subject to simulate a successful 6–9 month clinical hair transplant or treatment result. The output must be indistinguishable from a real photograph.
+Realistically enhance the hair density of the subject to simulate a successful 1 year clinical hair transplant or treatment result. The output must be indistinguishable from a real photograph.
 
 1. Volumetric Density & 3D Structure:
    - Treat the hair as a 3D volumetric object, not a flat texture.
@@ -119,9 +119,64 @@ Realistically enhance the hair density of the subject to simulate a successful 6
    - NO solid blocks of color; every added element must be a distinct hair strand.`
 
 
-.trim()
+.trim(),
+
+hair_control: `Enhance ONLY the hair of the person in this photo.
+
+Use the following medical hair transplant plan as your guide:
+
+VIEW ANGLE: {{view_angle}}
+CURRENT NORWOOD: {{current_norwood}}
+TARGET NORWOOD: {{target_norwood}}
+
+HAIRLINE PLAN:
+{{hairline_plan.description}}
+Frontal band thickness: {{hairline_plan.frontal_band_thickness_cm}} cm.
+Temples: {{hairline_plan.temple_description}}
+
+DENSITY PLAN:
+- High density zones: {{density_plan.high_density_zones}}
+- Medium density zones: {{density_plan.medium_density_zones}}
+- Low density zones: {{density_plan.low_density_zones}}
+Notes: {{density_plan.notes}}
+
+Concrete editing instructions:
+- Rebuild the hairline and density according to the plan above.
+- Reduce scalp visibility in the specified high-density zones.
+- Keep the result realistic, age-appropriate and consistent with the patient’s ethnicity and original hair texture.
+- Do NOT change the patient’s face, skin, eyes, nose, jaw, ears or neck.
+- Do NOT modify the background, clothing or lighting.
+- Do NOT apply beauty filters; only simulate a realistic post-transplant AFTER result (around the target Norwood stage).
+`.trim()
 
 };
+
+function buildHairControlPrompt() {
+  const replacements: Record<string, string> = {
+    '{{view_angle}}': 'frontal and vertex composite',
+    '{{current_norwood}}': 'Norwood IV',
+    '{{target_norwood}}': 'Norwood II',
+    '{{hairline_plan.description}}':
+      'Recreate a soft, natural-looking anterior hairline with micro irregularities. Maintain a gentle central peak and rounded temporal recessions.',
+    '{{hairline_plan.frontal_band_thickness_cm}}': '2.0',
+    '{{hairline_plan.temple_description}}':
+      'Temple points should be reinforced but kept slightly softer than the frontal band for age-appropriate balance.',
+    '{{density_plan.high_density_zones}}':
+      'Frontal band (first 2cm), mid-scalp transition, and visible crown swirl',
+    '{{density_plan.medium_density_zones}}':
+      'Mid-scalp posterior area and upper parietal zones',
+    '{{density_plan.low_density_zones}}':
+      'Lateral humps and very posterior crown edges (maintain donor realism)',
+    '{{density_plan.notes}}':
+      'Ensure a gradual transition between densities to avoid any helmet look. Preserve the patient’s original hair texture, direction, and subtle greys.',
+  };
+
+  let prompt = prompts.hair_control;
+  Object.entries(replacements).forEach(([token, value]) => {
+    prompt = prompt.split(token).join(value);
+  });
+  return prompt;
+}
 
 /* -------------------------------------------------------
    GEMINI MODELS
@@ -327,9 +382,10 @@ export async function POST(req: Request) {
     const mimeType = contentType;
 
     /* -------- Build Prompt -------- */
-    let prompt = prompts[treatmentType];
+    let prompt = '';
 
     if (treatmentType === 'teeth') {
+      prompt = prompts.teeth;
       const shadeDesc = describeTeethShade(teethShade);
       const styleDesc = describeTeethStyle(teethStyle);
 
@@ -346,43 +402,92 @@ export async function POST(req: Request) {
         prompt += `\nEnsure the results remain natural and clinically realistic.\n`;
       }
     } else if (referenceImages.length) {
-      prompt += `\n\nUse the provided before/operation/after reference photos to mimic Natural Clinic's hair restoration outcomes. Match the density, layering, and natural finish seen in those references.`;
+      // hair flow handles prompts separately, but we still keep base text for completeness
     }
 
-    /* -------- Generate With Gemini -------- */
-    const attemptErrors: string[] = [];
     const geminiModels =
       treatmentType === 'hair'
         ? ['gemini-3-pro-image-preview', 'gemini-2.5-flash-image']
         : ['gemini-2.5-flash-image', 'gemini-3-pro-image-preview'];
 
-    let transformedImageData: string | null = null;
+    const runWithModels = async (
+      promptText: string,
+      imageData: string,
+      temperature: number,
+      refs: ReferenceImage[]
+    ) => {
+      const attemptErrors: string[] = [];
+      for (const modelName of geminiModels) {
+        const result = await generateWithGeminiModel(
+          modelName,
+          promptText,
+          mimeType,
+          imageData,
+          geminiApiKey,
+          { temperature, references: refs }
+        );
+
+        if (result.success) {
+          console.log(`[transform-image] provider=gemini model=${modelName}`);
+          return result.data;
+        }
+        attemptErrors.push(`${modelName}: ${result.error}`);
+      }
+      throw new Error(attemptErrors.join(' | '));
+    };
 
     const modelTemperature = treatmentType === 'hair' ? 0.65 : 0.4;
-    for (const modelName of geminiModels) {
-      const result = await generateWithGeminiModel(
-        modelName,
-        prompt,
-        mimeType,
-        base64Image,
-        geminiApiKey,
-        { temperature: modelTemperature, references: referenceImages }
-      );
+    let transformedImageData: string;
 
-      if (result.success) {
-        transformedImageData = result.data;
-        console.log(`[transform-image] provider=gemini model=${modelName}`);
-        break;
+    if (treatmentType === 'hair') {
+      const basePassPrompt = prompts.hair_base;
+      let intermediateData: string;
+      try {
+        intermediateData = await runWithModels(basePassPrompt, base64Image, 0.55, referenceImages);
+      } catch (error) {
+        return buildResponse(
+          {
+            error: 'Failed to process image with Gemini API',
+            details: error instanceof Error ? error.message : String(error),
+          },
+          500
+        );
       }
 
-      attemptErrors.push(`${modelName}: ${result.error}`);
-    }
-
-    if (!transformedImageData) {
-      return buildResponse(
-        { error: 'Failed to process image with Gemini API', details: attemptErrors.join(' | ') },
-        500
-      );
+      const controlPrompt = buildHairControlPrompt();
+      try {
+        transformedImageData = await runWithModels(
+          controlPrompt,
+          intermediateData,
+          modelTemperature,
+          referenceImages
+        );
+      } catch (error) {
+        return buildResponse(
+          {
+            error: 'Failed to process image with Gemini API',
+            details: error instanceof Error ? error.message : String(error),
+          },
+          500
+        );
+      }
+    } else {
+      try {
+        transformedImageData = await runWithModels(
+          prompt,
+          base64Image,
+          modelTemperature,
+          referenceImages
+        );
+      } catch (error) {
+        return buildResponse(
+          {
+            error: 'Failed to process image with Gemini API',
+            details: error instanceof Error ? error.message : String(error),
+          },
+          500
+        );
+      }
     }
 
     const transformedUrl = `data:image/png;base64,${transformedImageData}`;
