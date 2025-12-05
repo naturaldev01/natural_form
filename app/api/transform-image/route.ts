@@ -88,67 +88,69 @@ Target look:
 `.trim(),
 
 hair_base: 
-`Role: Advanced Clinical Hair Restoration Simulator
+`Role: Expert Medical Hair Restoration Simulator & Photorealistic Editor
 
-Task:
-Realistically enhance the hair density of the subject to simulate a successful 1 year clinical hair transplant or treatment result. The output must be indistinguishable from a real photograph.
+Task: 
+Generate a hyper-realistic simulation of the user's hair 12 months after a successful high-density hair transplant (FUE/DHI).
 
-1. Volumetric Density & 3D Structure:
-   - Treat the hair as a 3D volumetric object, not a flat texture.
-   - Significantly increase density at the roots to reduce scalp visibility, simulating a graft density of 60–80 follicular units per cm².
-   - Ensure new strands layer naturally over each other to create genuine depth and occlusion.
+Input Image Context:
+- Subject is a male looking downwards.
+- Current Condition: Significant thinning at the frontal area, mid-scalp, and crown. Scalp is highly visible.
+- Goal: Full restoration to a Norwood 1,2,3,4,5,6 or 7 appearance.
 
-2. Frontal Zone & Hairline (Critical):
-   - Reinforce the frontal band (first 2-3 cm behind the hairline) with high density.
-   - Create a "soft transition" at the very edge of the hairline using finer, shorter "baby hairs" (micro-strands) to avoid an artificial "doll hair" or "helmet" look.
-   - Maintain the original hairline shape but define it with natural irregularity.
+CRITICAL VISUAL INSTRUCTIONS:
 
-3. Global Consistency (Multi-Angle Adaptation):
-   - If the view is Top/Vertex: Fill the crown area while preserving the natural swirl pattern (whorl) of the hair growth.
-   - If the view is Side/Profile: Increase density at the temples and ensure the volume connects seamlessly from the top to the sides.
-   - If the view is Back: Maintain donor area density and ensure texture consistency with the top.
+1. DENSITY & COVERAGE (Most Important):
+   - FILL THE GAPS: Completely eliminate the visibility of the scalp in the frontal and mid-scalp areas.
+   - OPAQUE CANOPY: Create a thick, dense canopy of hair. The skin should NOT be visible through the hair in the transplanted zones.
+   - LIGHT ABSORPTION: Dense hair absorbs light. Remove the shiny reflection from the scalp. The top of the head should look matte and textured, not shiny skin.
 
-4. Texture, Lighting & Integration:
-   - Match the existing hair's texture (curl pattern, thickness), color variance (including greys if present), and directional flow exactly.
-   - Introduce varied strand lengths to simulate active growth phases (anagen).
-   - Simulate realistic light interaction: The increased density should cast minute shadows on the scalp, grounding the hair realistically.
+2. HAIRLINE RECONSTRUCTION:
+   - Lower the hairline slightly to frame the face naturally.
+   - Create a dense "frontal forelock".
+   - Transition: The very edge of the hairline should be slightly irregular (micro-irregularity) to look natural, but immediately behind it, the density must be 100%.
 
-5. Strict Constraints:
-   - MODIFY ONLY THE HAIR. Do not alter the face, skin texture, forehead, ears, or background.
-   - NO smoothing, blurring, or painting effects.
-   - NO solid blocks of color; every added element must be a distinct hair strand.
-   - Preserve the exact framing and composition. Do NOT crop, resize, or reframe the image.
-   - Keep the background, lighting, clothing, and pose identical to the original photo.`
+3. TEXTURE & INTEGRATION:
+   - Match the subject's existing hair color (salt & pepper / dark brown with greys).
+   - Mimic the wave/curl pattern of the side hair.
+   - DIRECTION: Ensure the new hair follows the natural growth direction (forward in front, swirling at the crown).
+
+4. STRICT CONSTRAINTS (Preservation):
+   - FACE: Do NOT alter the subject's facial features (nose, eyes, skin texture, ears).
+   - BACKGROUND: Keep the background exactly as is (flag, chair, wall).
+   - IDENTITY: The person must remain recognizable, just with much more hair.
+   - REALISM: Avoid "Lego hair" or "Helmet hair". Use individual strand variation.
+
+Target Outcome: A confident, high-density result typical of a 4000-4500 graft hair transplant operation.`
 
 
 .trim(),
 
-hair_control: `Enhance ONLY the hair of the person in this photo.
+hair_control: `ACT AS: Advanced Clinical Hair Simulator.
 
-Use the following medical hair transplant plan as your guide:
+OPERATION: Perform a virtual hair transplant on the subject in the image based on the following medical plan:
 
-VIEW ANGLE: {{view_angle}}
-CURRENT NORWOOD: {{current_norwood}}
-TARGET NORWOOD: {{target_norwood}}
+VIEW ANGLE: {{view_angle}} (Note: For top-down views, prioritize covering the crown/vertex scalp skin completely).
+TARGET DENSITY: High (60-80 grafts/cm²).
 
-HAIRLINE PLAN:
-{{hairline_plan.description}}
-Frontal band thickness: {{hairline_plan.frontal_band_thickness_cm}} cm.
-Temples: {{hairline_plan.temple_description}}
+INSTRUCTIONS:
+1. RECONSTRUCTION:
+   - Identify the thinning areas (Norwood {{current_norwood}} pattern).
+   - Fill these areas with thick, healthy hair until the scalp is no longer visible.
+   - Apply a "Matte Finish" to the hair mass to simulate density and remove scalp shine.
 
-DENSITY PLAN:
-- High density zones: {{density_plan.high_density_zones}}
-- Medium density zones: {{density_plan.medium_density_zones}}
-- Low density zones: {{density_plan.low_density_zones}}
-Notes: {{density_plan.notes}}
+2. HAIRLINE (Plan: {{hairline_plan.description}}):
+   - Reconstruct a solid, defined hairline closer to the forehead.
+   - Ensure the frontal band is thick and robust.
 
-Concrete editing instructions:
-- Rebuild the hairline and density according to the plan above.
-- Reduce scalp visibility in the specified high-density zones.
-- Keep the result realistic, age-appropriate and consistent with the patient’s ethnicity and original hair texture.
-- Do NOT change the patient’s face, skin, eyes, nose, jaw, ears or neck.
-- Do NOT modify the background, clothing or lighting.
-- Do NOT apply beauty filters; only simulate a realistic post-transplant AFTER result (around the target Norwood stage).
+3. BLENDING:
+   - Seamlessly blend the new dense hair with the existing side/back hair.
+   - Maintain the original salt/pepper color mix and hair caliber.
+
+NEGATIVE CONSTRAINTS:
+- Do NOT produce sparse or thin hair.
+- Do NOT leave gaps showing the scalp in the transplant zone.
+- Do NOT change the background or facial identity.
 `.trim()
 
 };
