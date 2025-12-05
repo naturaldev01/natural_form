@@ -88,64 +88,60 @@ Target look:
 `.trim(),
 
 hair_base: 
-`Role: Precision Image Editor & Hair Transplant Specialist
+`Role: Precision Image Editor & Hair Transplant Retoucher
 
 Task:
-Perform a strict "Inpainting" operation on the provided image. FILL the balding areas with high-density hair without altering the head's position, angle, or the background pixels.
+Perform a strict "Inpainting" operation on the provided image. Your sole task is to FILL the balding/thinning areas with high-density hair.
 
-CRITICAL GEOMETRY CONSTRAINTS (DO NOT IGNORE):
-1. POSE LOCK: Do NOT rotate, tilt, or reshape the head. The output must align perfectly with the input image (pixel-perfect alignment).
-2. FACIAL PRESERVATION: Do NOT regenerate the face. The eyes, nose, and jawline must remain exactly identical to the original pixels.
-3. BACKGROUND LOCK: Do NOT change the background.
+CRITICAL CONSTRAINTS (Do Not Violate):
+1. GEOMETRY LOCK: Do NOT rotate, tilt, re-angle, or reshape the head. The output pose must align pixel-perfectly with the input image.
+2. FACIAL PRESERVATION: Do NOT touch the face, eyes, skin texture, or expression.
+3. BACKGROUND LOCK: Do NOT alter the background pixels.
 
 VISUAL INSTRUCTIONS:
 
-1. DENSITY FILLING (The Main Task):
-   - Identify the scalp areas exposed due to thinning (Norwood pattern).
-   - OVERLAY dense hair strands onto these specific scalp coordinates.
-   - The goal is to hide the skin in the frontal and vertex zones.
+1. DENSITY FILLING (The Goal):
+   - Identify the scalp areas exposed due to thinning (the Norwood pattern).
+   - OVERLAY dense hair texture onto these specific coordinates.
+   - Create an OPAQUE CANOPY. The scalp skin must NOT be visible in the frontal or crown zones after filling.
 
-2. COLOR INTEGRATION:
-   - SAMPLING: Sample the hair color EXACTLY from the sideburns/temples of the ORIGINAL image.
-   - MATCHING: The new hair must match this dark tone. Do not make it greyer or lighter than the sides.
-   - ROOTS: Ensure the new hair roots look dark and dense to eliminate scalp shine.
+2. COLOR ANCHORING (Crucial):
+   - SOURCE: Sample the hair color EXACTLY from the subject's existing sideburns and temple hair.
+   - APPLICATION: The new transplanted hair on top MUST match this dark tone 100%.
+   - ANTI-AGING: Do NOT add grey or white hairs. Do NOT make the hair look older or ashier than the sides. The pigment must be deep and dark to absorb light and prevent shine.
 
 3. HAIRLINE DEFINITION:
-   - Define the hairline on the existing forehead surface.
-   - Do not lower it unnaturally; follow the standard transplant marking logic appropriate for the face.
+   - Reconstruct a defined, dense hairline following standard medical design principles appropriate for the face.
 
-Output Requirement: The exact same photo, same pose, same lighting, but with the bald parts filled with dense hair.`
-
+Output Requirement: The exact same photograph, same lighting, same angle, but with the balding areas completely filled with dark, dense hair matching the sides.`
 .trim(),
 
-hair_control: `ACT AS: Precision Retouching AI.
+hair_control: `ACT AS: Precision Retouching AI (Inpainting Focus).
 
-OPERATION: Fill the sparse/bald zones on the SUBJECT'S EXISTING SCALP TOPOLOGY.
+OPERATION: Fill the sparse/bald zones using the SUBJECT'S EXISTING HEAD TOPOLOGY and COLOR.
 
 INPUT DATA:
-VIEW ANGLE: {{view_angle}} (Strictly preserve this angle).
+VIEW ANGLE: {{view_angle}} (Strictly maintain this angle. No re-imagining).
 CURRENT NORWOOD: {{current_norwood}}
-TARGET: High Density Coverage.
+TARGET: Maximum Density Coverage.
 
 INSTRUCTIONS:
-1. MAPPING:
-   - Map the thinning areas on the current head shape.
-   - Do NOT warp or morph the head shape.
+1. MAPPING & FILL:
+   - Map the thinning areas based on the current Norwood pattern.
+   - Apply dense hair texture ONLY to these identified zones. ensure the scalp is completely hidden.
 
-2. FILLING (Plan: {{hairline_plan.description}}):
-   - Apply dense hair texture ONLY to the identified thinning zones.
-   - Ensure the scalp is no longer visible in the frontal and crown areas.
-   - Use the side hair color as the reference for the new fill.
+2. COLOR FORCE:
+   - Force the new hair color to identical to the darkest part of the existing side hair.
+   - Prohibit any desaturation or graying effects.
 
 3. INTEGRATION:
-   - Blend the new density with the existing hair borders.
-   - The result must look like the original photo was taken 1 year later, not like a different photo.
+   - Blend the new high-density top hair seamlessly with the existing side hair borders. The transition must be invisible.
 
 NEGATIVE CONSTRAINTS:
-- NO HEAD ROTATION.
+- NO HEAD MOVE.
 - NO POSE CHANGE.
-- NO BACKGROUND CHANGE.
-- NO LIGHTING CHANGE.
+- NO GREY HAIR GENERATION.
+- NO SCALP SHINE VISIBILITY.
 `.trim()
 
 };
