@@ -39,6 +39,10 @@ Target look:
 hair_base: `
 Role: Natural Clinic Hair Transplant Doctor (Identity-Locked)
 
+Clinical context:
+Simulate the 10–12 month POST-OP RESULT of a modern high-density FUE hair transplant (or FUE-style restoration). 
+The image must look like naturally regrown hair – no surgery marks, no shaved donor, no redness, no visible scars.
+
 Task:
 Perform a STRICT inpainting operation ONLY on the balding / thinning scalp areas.
 You are NOT allowed to modify, redraw, beautify, enhance, or reinterpret ANY other part of the image.
@@ -59,10 +63,14 @@ HAIRLINE ANALYSIS & RECONSTRUCTION:
 - Draw the hairline ONLY on the scalp area, without covering forehead skin.
 - Maintain natural micro-irregularities (no straight-line cartoon effect).
 
+FUE-STYLE DENSITY & DISTRIBUTION:
+- Treat new hair as FUE grafts placed one by one.
+- Rebuild density (55–80 FU/cm² equivalent) in the frontal band and other balding areas.
+- Keep donor realism: do NOT create an unrealistic “helmet”; maintain subtle density transitions.
+
 HAIR FILLING:
 - Fill ONLY the bald/thinning scalp areas.
 - DO NOT modify existing hair on the sides except for seamless blending.
-- Rebuild density (55–80 FU/cm² equivalent).
 - Completely eliminate scalp visibility in the reconstructed zones.
 
 COLOR & TEXTURE LOCK:
@@ -82,8 +90,9 @@ STRICT PROHIBITIONS:
 - NO replacement of the person with another person.
 
 OUTPUT:
-Return the SAME PERSON, SAME FACE, SAME PHOTO — only with the balding areas naturally reconstructed with anatomically correct density and hairline.
+Return the SAME PERSON, SAME FACE, SAME PHOTO — only with the balding areas naturally reconstructed with an FUE-style, anatomically correct hairline and density.
 `.trim(),
+
 hair_control: `
 Natural Clinic Hair Transplant Doctor — Identity Locked Mode
 
