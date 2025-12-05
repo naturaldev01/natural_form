@@ -757,6 +757,9 @@ async function getImageDataUrl(src: string) {
   if (src.startsWith('data:')) {
     return src;
   }
+  if (src.startsWith('/')) {
+    return src;
+  }
 
   const cached = imageDataCache.get(src);
   if (cached) {

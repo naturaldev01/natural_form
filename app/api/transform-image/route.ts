@@ -80,8 +80,8 @@ Goals:
 Strict rules:
 - Do NOT change the person's face, lips, eyes, skin tone or expression.
 - Do NOT change the mouth position or smile width.
- - Do NOT modify the hair, background, clothing or lighting.
- - Avoid overly bright, glowing or plastic-looking teeth.
+- Do NOT modify the hair, background, clothing or lighting.
+- Avoid overly bright, glowing or plastic-looking teeth.
 
 Target look:
 - A realistic, high-end dental clinic “after treatment” result.
@@ -116,7 +116,9 @@ Realistically enhance the hair density of the subject to simulate a successful 1
 5. Strict Constraints:
    - MODIFY ONLY THE HAIR. Do not alter the face, skin texture, forehead, ears, or background.
    - NO smoothing, blurring, or painting effects.
-   - NO solid blocks of color; every added element must be a distinct hair strand.`
+   - NO solid blocks of color; every added element must be a distinct hair strand.
+   - Preserve the exact framing and composition. Do NOT crop, resize, or reframe the image.
+   - Keep the background, lighting, clothing, and pose identical to the original photo.`
 
 
 .trim(),
