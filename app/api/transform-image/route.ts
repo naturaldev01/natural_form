@@ -1,7 +1,4 @@
 import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-
 export const runtime = 'nodejs';
 
 // CORS - restrict to same origin in production
@@ -15,55 +12,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-interface ReferenceImage {
-  mimeType: string;
-  data: string;
-}
-
-const OPERATION_REFERENCE_FILES = [
-  'BEFORE1.jpg',
-  'BEFORE2.jpg',
-  'BEFORE3.jpg',
-  'BEFORE4.jpg',
-  'OP1.jpg',
-  'OP2.jpg',
-  'OP3.jpg',
-  'OP4.jpg',
-  'AFTER1.jpg',
-  'AFTER2.jpg',
-  'AFTER3.jpg',
-  'AFTER4.jpg',
-];
-
-let operationReferenceCache: Promise<ReferenceImage[]> | null = null;
-
-async function getOperationReferenceImages(): Promise<ReferenceImage[]> {
-  if (!operationReferenceCache) {
-    operationReferenceCache = (async () => {
-      try {
-        const root = path.join(process.cwd(), 'public', 'assets', 'operations');
-        const files = await Promise.all(
-          OPERATION_REFERENCE_FILES.map(async (file) => {
-            try {
-              const filePath = path.join(root, file);
-              const buffer = await fs.readFile(filePath);
-              return {
-                mimeType: 'image/jpeg',
-                data: buffer.toString('base64'),
-              } as ReferenceImage;
-            } catch {
-              return null;
-            }
-          })
-        );
-        return files.filter((img): img is ReferenceImage => Boolean(img));
-      } catch {
-        return [];
-      }
-    })();
-  }
-  return operationReferenceCache;
-}
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 /* -------------------------------------------------------
    BASE PROMPTS (revized & clinic-grade)
@@ -87,66 +36,103 @@ Target look:
 - A realistic, high-end dental clinic “after treatment” result.
 `.trim(),
 
-hair_base: 
-`Role: Precision Image Editor & Hair Transplant Retoucher
+hair_base: `
+Role: Natural Clinic Hair Transplant Doctor (Identity-Locked)
 
 Task:
-Perform a strict "Inpainting" operation on the provided image. Your sole task is to FILL the balding/thinning areas with high-density hair.
+Perform a STRICT inpainting operation ONLY on the balding / thinning scalp areas.
+You are NOT allowed to modify, redraw, beautify, enhance, or reinterpret ANY other part of the image.
 
-CRITICAL CONSTRAINTS (Do Not Violate):
-1. GEOMETRY LOCK: Do NOT rotate, tilt, re-angle, or reshape the head. The output pose must align pixel-perfectly with the input image.
-2. FACIAL PRESERVATION: Do NOT touch the face, eyes, skin texture, or expression.
-3. BACKGROUND LOCK: Do NOT alter the background pixels.
+IDENTITY LOCK (MANDATORY):
+- The subject’s FACE MUST REMAIN 100% IDENTICAL to the input image.
+- Absolutely NO changes to head shape, skin, eyebrows, eyes, nose, mouth, jawline, ears, facial hair, or expression.
+- NO re-rendering. NO “new face”. NO smoothing. NO beautification.
+- You must preserve pixel-level identity.
 
-VISUAL INSTRUCTIONS:
+IMAGE LOCK (MANDATORY):
+- DO NOT alter background, lighting, shadows, angle, pose, clothing, or camera geometry.
+- The output must align pixel-for-pixel with the input except for the added hair strands.
 
-1. DENSITY FILLING (The Goal):
-   - Identify the scalp areas exposed due to thinning (the Norwood pattern).
-   - OVERLAY dense hair texture onto these specific coordinates.
-   - Create an OPAQUE CANOPY. The scalp skin must NOT be visible in the frontal or crown zones after filling.
+HAIRLINE ANALYSIS & RECONSTRUCTION:
+- Detect true Norwood recession zones (temples, corners, midline).
+- Determine the anatomically appropriate, natural hairline level based on forehead proportions.
+- Draw the hairline ONLY on the scalp area, without covering forehead skin.
+- Maintain natural micro-irregularities (no straight-line cartoon effect).
 
-2. COLOR ANCHORING (Crucial):
-   - SOURCE: Sample the hair color EXACTLY from the subject's existing sideburns and temple hair.
-   - APPLICATION: The new transplanted hair on top MUST match this dark tone 100%.
-   - ANTI-AGING: Do NOT add grey or white hairs. Do NOT make the hair look older or ashier than the sides. The pigment must be deep and dark to absorb light and prevent shine.
+HAIR FILLING:
+- Fill ONLY the bald/thinning scalp areas.
+- DO NOT modify existing hair on the sides except for seamless blending.
+- Rebuild density (55–80 FU/cm² equivalent).
+- Completely eliminate scalp visibility in the reconstructed zones.
 
-3. HAIRLINE DEFINITION:
-   - Reconstruct a defined, dense hairline following standard medical design principles appropriate for the face.
+COLOR & TEXTURE LOCK:
+- Sample color ONLY from existing side hair.
+- Do NOT change overall hair color.
+- No greying, no brightening, no color shift.
+- Texture and curl must match the subject’s original DNA-like pattern.
 
-Output Requirement: The exact same photograph, same lighting, same angle, but with the balding areas completely filled with dark, dense hair matching the sides.`
-.trim(),
+STRICT PROHIBITIONS:
+- NO face alteration (even 1 pixel).
+- NO reshaping the head.
+- NO adjusting forehead size.
+- NO changing photo realism.
+- NO smoothing skin.
+- NO style transfer.
+- NO cartoon-like lines.
+- NO replacement of the person with another person.
 
-hair_control: `ACT AS: Precision Retouching AI (Inpainting Focus).
+OUTPUT:
+Return the SAME PERSON, SAME FACE, SAME PHOTO — only with the balding areas naturally reconstructed with anatomically correct density and hairline.
+`.trim(),
+hair_control: `
+Natural Clinic Hair Transplant Doctor — Identity Locked Mode
 
-OPERATION: Fill the sparse/bald zones using the SUBJECT'S EXISTING HEAD TOPOLOGY and COLOR.
+OPERATION OBJECTIVE:
+Add hair ONLY to the bald/thinning scalp zones. Nothing else in the image is allowed to change.
 
-INPUT DATA:
-VIEW ANGLE: {{view_angle}} (Strictly maintain this angle. No re-imagining).
+INPUT:
+VIEW ANGLE: {{view_angle}}
 CURRENT NORWOOD: {{current_norwood}}
-TARGET: Maximum Density Coverage.
+TARGET: Natural, dense coverage (Norwood 1 equivalent)
 
 INSTRUCTIONS:
-1. MAPPING & FILL:
-   - Map the thinning areas based on the current Norwood pattern.
-   - Apply dense hair texture ONLY to these identified zones. ensure the scalp is completely hidden.
 
-2. COLOR FORCE:
-   - Force the new hair color to identical to the darkest part of the existing side hair.
-   - Prohibit any desaturation or graying effects.
+1. HAIRLINE ANALYSIS:
+   - Detect actual recession zones (temporal peaks, corners).
+   - Determine natural anatomical hairline height.
+   - Reconstruct only the missing portions — without lowering the forehead unnaturally.
+   - Maintain age-appropriate, ethnic-appropriate curvature.
 
-3. INTEGRATION:
-   - Blend the new high-density top hair seamlessly with the existing side hair borders. The transition must be invisible.
+2. FILL ONLY BALD AREAS:
+   - Do NOT alter existing hair.
+   - Do NOT touch forehead skin.
+   - Fill visible scalp with dense, natural strands.
+   - No transparency or patchiness.
+
+3. COLOR MATCH:
+   - Use ONLY the darkest tone of side hair.
+   - Absolutely NO tone shift.
+
+4. TEXTURE MATCH:
+   - Maintain identical thickness, direction, and micro-waves of the original hair.
+
+5. INTEGRATION:
+   - Blend borders invisibly.
+   - Do NOT add extra volume outside thinning zones.
 
 NEGATIVE CONSTRAINTS:
-- NO HEAD MOVE.
-- NO POSE CHANGE.
-- NO GREY HAIR GENERATION.
-- NO SCALP SHINE VISIBILITY.
+- NO face change.
+- NO new skin texture.
+- NO reshaping head contours.
+- NO background modification.
+- NO re-interpretation of lighting.
+- NO beautification filter.
+
 `.trim()
 
 };
 
-function buildHairControlPrompt() {
+function buildHairControlPrompt(analysisText?: string) {
   const replacements: Record<string, string> = {
     '{{view_angle}}': 'frontal and vertex composite',
     '{{current_norwood}}': 'Norwood IV',
@@ -170,7 +156,11 @@ function buildHairControlPrompt() {
   Object.entries(replacements).forEach(([token, value]) => {
     prompt = prompt.split(token).join(value);
   });
-  return prompt;
+  let combined = `${prompts.hair_base}\n\n${prompt}`;
+  if (analysisText?.trim()) {
+    combined += `\n\nClinical analysis notes:\n${analysisText.trim()}\n\nExecute the transformation so that it fulfills the formal plan above and the specialist analysis exactly.`;
+  }
+  return combined;
 }
 
 /* -------------------------------------------------------
@@ -182,7 +172,7 @@ async function generateWithGeminiModel(
   mimeType: string,
   base64Image: string,
   apiKey: string,
-  options?: { temperature?: number; references?: ReferenceImage[] }
+  options?: { temperature?: number }
 ) {
   const temperature = options?.temperature ?? 0.2;
   const parts: any[] = [
@@ -194,17 +184,6 @@ async function generateWithGeminiModel(
       },
     },
   ];
-
-  if (options?.references?.length) {
-    for (const ref of options.references) {
-      parts.push({
-        inline_data: {
-          mime_type: ref.mimeType,
-          data: ref.data,
-        },
-      });
-    }
-  }
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
     {
@@ -244,6 +223,67 @@ async function generateWithGeminiModel(
   }
 
   return { success: false as const, error: 'No inline image data in response' };
+}
+
+async function generateHairPlanDescription(base64Image: string, mimeType: string) {
+  if (!OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not configured');
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-5.1',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a senior Natural Clinic hair transplant specialist. Provide detailed analyses of balding patterns and transplant plans in Turkish. Your notes should be clinical, structured, and ready to be used as instructions for an imaging model.',
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Fotoğraftaki hastanın kellik bölgelerini ve hangi bölgede nasıl bir transplant planı gerektiğini ayrıntılı ve madde madde açıkla. Klasik saç ekim terminolojisini kullan.',
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:${mimeType};base64,${base64Image}`,
+                },
+              },
+            ],
+          },
+        ],
+        temperature: 0.2,
+      }),
+    });
+
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(message || 'Failed to get analysis from OpenAI');
+    }
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new Error('OpenAI returned empty analysis');
+    }
+    if (Array.isArray(content)) {
+      return content.map((c: any) => c.text ?? '').join('\n').trim();
+    }
+    return String(content).trim();
+  } catch (error) {
+    throw new Error(
+      `OpenAI hair analysis failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }
 
 /* -------------------------------------------------------
@@ -340,7 +380,7 @@ export async function POST(req: Request) {
     }
 
     // Teeth validation
-    let referenceImages: ReferenceImage[] = [];
+    let planAnalysis: string | undefined;
     if (treatmentType === 'teeth') {
       if (teethShade && !VALID_TEETH_SHADES.includes(teethShade)) {
         return buildResponse({ error: 'Invalid teeth shade value' }, 400);
@@ -348,8 +388,6 @@ export async function POST(req: Request) {
       if (teethStyle && !VALID_TEETH_STYLES.includes(teethStyle)) {
         return buildResponse({ error: 'Invalid teeth style value' }, 400);
       }
-    } else {
-      referenceImages = await getOperationReferenceImages();
     }
 
     const geminiApiKey = process.env.GEMINI_API_KEY;
@@ -376,6 +414,21 @@ export async function POST(req: Request) {
     const base64Image = imageBuffer.toString('base64');
     const mimeType = contentType;
 
+    if (treatmentType === 'hair') {
+      try {
+        planAnalysis = await generateHairPlanDescription(base64Image, mimeType);
+        console.log('[transform-image] OpenAI hair analysis:', planAnalysis);
+      } catch (error) {
+        return buildResponse(
+          {
+            error: 'Unable to analyze hair regions with OpenAI',
+            details: error instanceof Error ? error.message : String(error),
+          },
+          500
+        );
+      }
+    }
+
     /* -------- Build Prompt -------- */
     let prompt = '';
 
@@ -396,8 +449,6 @@ export async function POST(req: Request) {
       if (shadeDesc || styleDesc) {
         prompt += `\nEnsure the results remain natural and clinically realistic.\n`;
       }
-    } else if (referenceImages.length) {
-      // hair flow handles prompts separately, but we still keep base text for completeness
     }
 
     const geminiModels =
@@ -408,8 +459,7 @@ export async function POST(req: Request) {
     const runWithModels = async (
       promptText: string,
       imageData: string,
-      temperature: number,
-      refs: ReferenceImage[]
+      temperature: number
     ) => {
       const attemptErrors: string[] = [];
       for (const modelName of geminiModels) {
@@ -419,7 +469,7 @@ export async function POST(req: Request) {
           mimeType,
           imageData,
           geminiApiKey,
-          { temperature, references: refs }
+          { temperature }
         );
 
         if (result.success) {
@@ -435,28 +485,9 @@ export async function POST(req: Request) {
     let transformedImageData: string;
 
     if (treatmentType === 'hair') {
-      const basePassPrompt = prompts.hair_base;
-      let intermediateData: string;
+      const controlPrompt = buildHairControlPrompt(planAnalysis);
       try {
-        intermediateData = await runWithModels(basePassPrompt, base64Image, 0.55, referenceImages);
-      } catch (error) {
-        return buildResponse(
-          {
-            error: 'Failed to process image with Gemini API',
-            details: error instanceof Error ? error.message : String(error),
-          },
-          500
-        );
-      }
-
-      const controlPrompt = buildHairControlPrompt();
-      try {
-        transformedImageData = await runWithModels(
-          controlPrompt,
-          intermediateData,
-          modelTemperature,
-          referenceImages
-        );
+        transformedImageData = await runWithModels(controlPrompt, base64Image, modelTemperature);
       } catch (error) {
         return buildResponse(
           {
@@ -468,12 +499,7 @@ export async function POST(req: Request) {
       }
     } else {
       try {
-        transformedImageData = await runWithModels(
-          prompt,
-          base64Image,
-          modelTemperature,
-          referenceImages
-        );
+        transformedImageData = await runWithModels(prompt, base64Image, modelTemperature);
       } catch (error) {
         return buildResponse(
           {
