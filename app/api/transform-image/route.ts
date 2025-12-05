@@ -468,6 +468,7 @@ export async function POST(req: Request) {
     const runWithModels = async (
       promptText: string,
       imageData: string,
+      imageMime: string,
       temperature: number
     ) => {
       const attemptErrors: string[] = [];
@@ -475,7 +476,7 @@ export async function POST(req: Request) {
         const result = await generateWithGeminiModel(
           modelName,
           promptText,
-          mimeType,
+          imageMime,
           imageData,
           geminiApiKey,
           { temperature }
@@ -496,7 +497,12 @@ export async function POST(req: Request) {
     if (treatmentType === 'hair') {
       const controlPrompt = buildHairControlPrompt(planAnalysis);
       try {
-        transformedImageData = await runWithModels(controlPrompt, base64Image, modelTemperature);
+        transformedImageData = await runWithModels(
+          controlPrompt,
+          base64Image,
+          mimeType,
+          modelTemperature
+        );
       } catch (error) {
         return buildResponse(
           {
@@ -508,7 +514,12 @@ export async function POST(req: Request) {
       }
     } else {
       try {
-        transformedImageData = await runWithModels(prompt, base64Image, modelTemperature);
+        transformedImageData = await runWithModels(
+          prompt,
+          base64Image,
+          mimeType,
+          modelTemperature
+        );
       } catch (error) {
         return buildResponse(
           {
@@ -523,6 +534,7 @@ export async function POST(req: Request) {
     const transformedUrl = `data:image/png;base64,${transformedImageData}`;
     return buildResponse({ transformedUrl });
   } catch (error) {
+    console.error('[transform-image] Unexpected error', error);
     return buildResponse(
       {
         error: 'Internal server error',
