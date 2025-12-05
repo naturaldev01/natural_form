@@ -88,61 +88,65 @@ Target look:
 `.trim(),
 
 hair_base: 
-`Role: Advanced Clinical Hair Restoration Simulator
+`Role: Precision Image Editor & Hair Transplant Specialist
 
 Task:
-Realistically enhance the hair density of the subject to simulate a successful 1 year clinical hair transplant result. The output must be indistinguishable from a real photograph.
+Perform a strict "Inpainting" operation on the provided image. FILL the balding areas with high-density hair without altering the head's position, angle, or the background pixels.
 
-1. Color Integrity & Pigment Matching (CRITICAL):
-   - ABSOLUTE COLOR MATCH: Sample the darkest hair color from the subject's sideburns and temporal area (above ears). Use this EXACT color code for the new hair.
-   - NO GRAY DRIFT: Do NOT desaturate the hair or add artificial "ashy/white" pixels to simulate density. If the side hair is dark, the top must be equally dark.
-   - PIGMENT DEPTH: The roots must appear deep and pigmented, not dusty or faded.
+CRITICAL GEOMETRY CONSTRAINTS (DO NOT IGNORE):
+1. POSE LOCK: Do NOT rotate, tilt, or reshape the head. The output must align perfectly with the input image (pixel-perfect alignment).
+2. FACIAL PRESERVATION: Do NOT regenerate the face. The eyes, nose, and jawline must remain exactly identical to the original pixels.
+3. BACKGROUND LOCK: Do NOT change the background.
 
-2. Volumetric Density & Coverage:
-   - Treat the hair as a 3D volumetric object. Significantly increase density to completely CONCEAL the scalp skin in treated areas.
-   - SCALP OCCLUSION: There should be zero light reflection from the scalp in the frontal and mid-scalp zones. The hair mass must be opaque.
-   - Create a graft density visual of 60–80 follicular units per cm².
+VISUAL INSTRUCTIONS:
 
-3. Frontal Zone & Hairline:
-   - Reinforce the frontal band with high density.
-   - Create a "soft transition" at the very edge using finer single strands, but immediately behind the edge, density must be 100%.
-   - Maintain natural irregularity to avoid a wig-like appearance.
+1. DENSITY FILLING (The Main Task):
+   - Identify the scalp areas exposed due to thinning (Norwood pattern).
+   - OVERLAY dense hair strands onto these specific scalp coordinates.
+   - The goal is to hide the skin in the frontal and vertex zones.
 
-4. Texture & Lighting:
-   - Match the existing hair's curl pattern and thickness.
-   - Simulate realistic light interaction: The increased density should absorb light (matte finish), removing the "shiny scalp" look.
+2. COLOR INTEGRATION:
+   - SAMPLING: Sample the hair color EXACTLY from the sideburns/temples of the ORIGINAL image.
+   - MATCHING: The new hair must match this dark tone. Do not make it greyer or lighter than the sides.
+   - ROOTS: Ensure the new hair roots look dark and dense to eliminate scalp shine.
 
-5. Strict Constraints:
-   - MODIFY ONLY THE HAIR. Do not alter the face, skin texture, background, or lighting.
-   - NO smoothing or painting effects. Every element must look like a distinct hair strand.
-   - Preserve the exact framing. Do NOT crop or resize.`
+3. HAIRLINE DEFINITION:
+   - Define the hairline on the existing forehead surface.
+   - Do not lower it unnaturally; follow the standard transplant marking logic appropriate for the face.
+
+Output Requirement: The exact same photo, same pose, same lighting, but with the bald parts filled with dense hair.`
+
 .trim(),
-hair_control: `Enhance ONLY the hair of the person in this photo.
 
-Use the following medical hair transplant plan as your guide:
+hair_control: `ACT AS: Precision Retouching AI.
 
-VIEW ANGLE: {{view_angle}}
+OPERATION: Fill the sparse/bald zones on the SUBJECT'S EXISTING SCALP TOPOLOGY.
+
+INPUT DATA:
+VIEW ANGLE: {{view_angle}} (Strictly preserve this angle).
 CURRENT NORWOOD: {{current_norwood}}
-TARGET NORWOOD: {{target_norwood}}
+TARGET: High Density Coverage.
 
-HAIRLINE PLAN:
-{{hairline_plan.description}}
-Frontal band thickness: {{hairline_plan.frontal_band_thickness_cm}} cm.
-Temples: {{hairline_plan.temple_description}}
+INSTRUCTIONS:
+1. MAPPING:
+   - Map the thinning areas on the current head shape.
+   - Do NOT warp or morph the head shape.
 
-DENSITY PLAN:
-- High density zones: {{density_plan.high_density_zones}} (Ensure scalp is invisible here)
-- Medium density zones: {{density_plan.medium_density_zones}}
-- Low density zones: {{density_plan.low_density_zones}}
+2. FILLING (Plan: {{hairline_plan.description}}):
+   - Apply dense hair texture ONLY to the identified thinning zones.
+   - Ensure the scalp is no longer visible in the frontal and crown areas.
+   - Use the side hair color as the reference for the new fill.
 
-Concrete editing instructions:
-- Rebuild the hairline and density according to the plan above.
-- COLOR CONSTRAINT: Strictly maintain the patient's original hair color found on the sides. Do NOT make the hair look older, greyer, or whiter than the original.
-- Reduce scalp visibility to near zero in high-density zones.
-- Keep the result realistic and consistent with the patient’s ethnicity.
-- Do NOT change the patient’s face, skin, eyes, nose, jaw, ears or neck.
-- Do NOT modify the background, clothing or lighting.
-- Do NOT apply beauty filters.`.trim()
+3. INTEGRATION:
+   - Blend the new density with the existing hair borders.
+   - The result must look like the original photo was taken 1 year later, not like a different photo.
+
+NEGATIVE CONSTRAINTS:
+- NO HEAD ROTATION.
+- NO POSE CHANGE.
+- NO BACKGROUND CHANGE.
+- NO LIGHTING CHANGE.
+`.trim()
 
 };
 
