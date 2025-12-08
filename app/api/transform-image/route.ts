@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 export const runtime = 'nodejs';
 
 // CORS - restrict to same origin in production
@@ -443,6 +444,15 @@ const describeTeethStyle = (value?: string) =>
 /* -------------------------------------------------------
    MAIN ROUTE HANDLER
 ------------------------------------------------------- */
+
+function imagesAreIdentical(beforeBase64: string, afterBase64: string) {
+  if (beforeBase64 === afterBase64) return true;
+  if (!beforeBase64 || !afterBase64) return false;
+  const beforeHash = crypto.createHash('sha256').update(beforeBase64).digest('hex');
+  const afterHash = crypto.createHash('sha256').update(afterBase64).digest('hex');
+  return beforeHash === afterHash;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -613,6 +623,8 @@ export async function POST(req: Request) {
       // Teeth QA: check if teeth visibly changed; if not, run a boosted pass.
       const shadeDesc = describeTeethShade(teethShade);
       const styleDesc = describeTeethStyle(teethStyle);
+      const identicalOutput = imagesAreIdentical(base64Image, transformedImageData);
+
       const teethChanged = await detectTeethChangeGemini({
         beforeBase64: base64Image,
         afterBase64: transformedImageData,
@@ -623,7 +635,9 @@ export async function POST(req: Request) {
         styleDesc,
       });
 
-      if (!teethChanged) {
+      const needsRetry = identicalOutput || !teethChanged;
+
+      if (needsRetry) {
         const boostedPrompt =
           `${prompt}\n\nCritical QA override: visibly apply the requested teeth whitening/alignment` +
           `${shadeDesc ? ` to ${shadeDesc}` : ''}` +
@@ -631,13 +645,26 @@ export async function POST(req: Request) {
 
         const boostedModels = ['gemini-3-pro-image-preview', 'gemini-2.5-flash-image'];
         try {
-          transformedImageData = await runWithModels(
+          const boostedImage = await runWithModels(
             boostedPrompt,
             base64Image,
             mimeType,
             0.55,
             boostedModels
           );
+          const stillIdentical = imagesAreIdentical(base64Image, boostedImage);
+          if (!stillIdentical) {
+            transformedImageData = boostedImage;
+          } else {
+            console.warn('[transform-image] boosted teeth attempt still identical to input');
+            return buildResponse(
+              {
+                error:
+                  'The AI could not safely change the teeth. Please try another photo or adjust selections.',
+              },
+              502
+            );
+          }
         } catch (error) {
           // if retry fails, keep first result but report
           console.warn('[transform-image] teeth retry failed', error);

@@ -269,6 +269,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
   const [successMessage, setSuccessMessage] = useState('');
   const [showResultPage, setShowResultPage] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [rerunLoading, setRerunLoading] = useState(false);
   const selectedShade = TEETH_SHADES.find((shade) => shade.value === formData.teethShade);
   const selectedStyle = TEETH_STYLE_OPTIONS.find((style) => style.value === formData.teethStyle);
   const navigateForTreatment = (type: 'teeth' | 'hair') => {
@@ -446,6 +447,58 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await submitForm();
+  };
+
+  const rerunWithSameSelections = async () => {
+    if (!transformationResults || !transformationResults.length) return;
+    setRerunLoading(true);
+    setError(null);
+
+    try {
+      const results: TransformationResult[] = [];
+      for (const result of transformationResults) {
+        const transformResponse = await fetch('/api/transform-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            imageUrl: result.originalUrl,
+            treatmentType: formData.treatmentType,
+            teethShade: formData.treatmentType === 'teeth' ? formData.teethShade : undefined,
+            teethStyle: formData.treatmentType === 'teeth' ? formData.teethStyle : undefined,
+          }),
+        });
+
+        let transformData:
+          | { transformedUrl?: string; error?: string; message?: string; warning?: string }
+          | null = null;
+        try {
+          transformData = await transformResponse.json();
+        } catch {
+          transformData = null;
+        }
+
+        if (!transformResponse.ok || !transformData?.transformedUrl) {
+          const errorMessage =
+            transformData?.error ||
+            transformData?.message ||
+            t('errors.generic');
+          throw new Error(errorMessage);
+        }
+
+        results.push({
+          originalUrl: result.originalUrl,
+          transformedUrl: transformData.transformedUrl,
+        });
+      }
+
+      setTransformationResults(results);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('errors.generic'));
+    } finally {
+      setRerunLoading(false);
+    }
   };
 
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -1408,6 +1461,27 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                     </div>
                   ))}
                 </div>
+
+                {/* Refinement quick action */}
+                {formData.treatmentType === 'teeth' && (
+                  <div className="mt-10 text-center space-y-3">
+                    <p className="text-sm text-gray-600">{t('results.refine.helper')}</p>
+                    <button
+                      onClick={rerunWithSameSelections}
+                      disabled={rerunLoading}
+                      className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-white text-[#006069] font-semibold rounded-xl border border-[#006069] shadow-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {rerunLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          {t('results.refine.loading')}
+                        </>
+                      ) : (
+                        <>{t('results.refine.cta')}</>
+                      )}
+                    </button>
+                  </div>
+                )}
 
                 {/* CTA Section */}
                 <div className="mt-12 text-center">
