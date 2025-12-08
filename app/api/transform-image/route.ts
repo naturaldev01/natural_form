@@ -40,64 +40,52 @@ hair_base: `
 Role: Natural Clinic Hair Transplant Doctor (Identity-Locked)
 
 Clinical context:
-Simulate the 10–12 month POST-OP RESULT of a modern high-density FUE hair transplant (or FUE-style restoration). 
-The image must look like naturally regrown hair – no surgery marks, no shaved donor, no redness, no visible scars.
+Simulate the 10–12 month POST-OP RESULT of a modern high-density FUE hair transplant.
+Image must stay pixel-aligned with the input; no re-rendering, no surgery marks.
 
-Task:
-Perform a STRICT inpainting operation ONLY on the balding / thinning scalp areas.
-You are NOT allowed to modify, redraw, beautify, enhance, or reinterpret ANY other part of the image.
+MANDATORY IDENTITY LOCK:
+- The subject’s face and skull: ZERO CHANGE (skin, eyebrows, eyes, nose, mouth, jawline, ears, facial hair, expression).
 
-IDENTITY LOCK (MANDATORY):
-- The subject’s FACE MUST REMAIN 100% IDENTICAL to the input image.
-- Absolutely NO changes to head shape, skin, eyebrows, eyes, nose, mouth, jawline, ears, facial hair, or expression.
-- NO re-rendering. NO “new face”. NO smoothing. NO beautification.
-- You must preserve pixel-level identity.
+MANDATORY IMAGE LOCK:
+- Do NOT alter background, lighting, shadows, angle, pose, clothing, or camera geometry.
 
-IMAGE LOCK (MANDATORY):
-- DO NOT alter background, lighting, shadows, angle, pose, clothing, or camera geometry.
-- The output must align pixel-for-pixel with the input except for the added hair strands.
-
-HAIRLINE ANALYSIS & RECONSTRUCTION:
-- Detect true Norwood recession zones (temples, corners, midline).
-- Determine the anatomically appropriate, natural hairline level based on forehead proportions.
-- Draw the hairline ONLY on the scalp area, without covering forehead skin.
-- Maintain natural micro-irregularities (no straight-line cartoon effect).
+HAIRLINE & PROPORTION RULES:
+- Respect age-appropriate anatomy; avoid straight juvenile lines.
+- Keep the anterior hairline within ≤1–1.5 cm above the lateral brow line and never below the mid-forehead proportion.
+- Do NOT cover intact forehead skin; fill only true scalp loss zones.
+- Preserve temporal angles; no “helmet” wall of hair.
 
 FUE-STYLE DENSITY & DISTRIBUTION:
 - Treat new hair as FUE grafts placed one by one.
-- Rebuild density (55–80 FU/cm² equivalent) in the frontal band and other balding areas.
-- Keep donor realism: do NOT create an unrealistic “helmet”; maintain subtle density transitions.
+- Rebuild density (55–80 FU/cm² equivalent) in the frontal band; taper naturally to mid-scalp/crown.
+- Maintain donor realism: subtle density transitions, no artificial bulk.
 
 HAIR FILLING:
 - Fill ONLY the bald/thinning scalp areas.
 - DO NOT modify existing hair on the sides except for seamless blending.
-- Completely eliminate scalp visibility in the reconstructed zones.
+- Eliminate scalp visibility in reconstructed zones without crossing onto forehead skin.
 
 COLOR & TEXTURE LOCK:
-- Sample color ONLY from existing side hair.
-- Do NOT change overall hair color.
-- No greying, no brightening, no color shift.
-- Texture and curl must match the subject’s original DNA-like pattern.
+- Sample color ONLY from existing side hair; no tone shift, no greying, no brightening.
+- Match texture/curl/micro-waves to the subject’s original pattern.
 
 STRICT PROHIBITIONS:
-- NO face alteration (even 1 pixel).
-- NO reshaping the head.
-- NO adjusting forehead size.
-- NO changing photo realism.
-- NO smoothing skin.
-- NO style transfer.
-- NO cartoon-like lines.
+- NO face alteration (even 1 pixel). NO reshaping the head. NO adjusting forehead size.
+- NO smoothing skin. NO beautification. NO style transfer. NO cartoon lines.
 - NO replacement of the person with another person.
 
 OUTPUT:
-Return the SAME PERSON, SAME FACE, SAME PHOTO — only with the balding areas naturally reconstructed with an FUE-style, anatomically correct hairline and density.
+Return the SAME PERSON, SAME FACE, SAME PHOTO — only with balding areas naturally reconstructed with an anatomically correct FUE-style hairline and density.
 `.trim(),
 
 hair_control: `
 Natural Clinic Hair Transplant Doctor — Identity Locked Mode
 
 OPERATION OBJECTIVE:
-Add hair ONLY to the bald/thinning scalp zones. Nothing else in the image is allowed to change.
+Add hair ONLY to bald/thinning scalp zones. Nothing else changes.
+
+SAFETY GUARD:
+If uncertain, default to a conservative Norwood II profile; do NOT lower the forehead or temporal points.
 
 INPUT:
 VIEW ANGLE: {{view_angle}}
@@ -108,22 +96,20 @@ INSTRUCTIONS:
 
 1. HAIRLINE ANALYSIS:
    - Detect actual recession zones (temporal peaks, corners).
-   - Determine natural anatomical hairline height.
-   - Reconstruct only the missing portions — without lowering the forehead unnaturally.
-   - Maintain age-appropriate, ethnic-appropriate curvature.
+   - Maintain age/ethnic-appropriate curve; avoid straight juvenile lines.
+   - Reconstruct only the missing portions — never cross onto forehead skin.
 
 2. FILL ONLY BALD AREAS:
-   - Do NOT alter existing hair.
-   - Do NOT touch forehead skin.
-   - Fill visible scalp with dense, natural strands.
-   - No transparency or patchiness.
+   - Leave existing hair untouched except seamless blend.
+   - Fill visible scalp with dense, natural strands; no transparency or patchiness.
+   - Avoid helmet walls; keep temporal recess harmony.
 
 3. COLOR MATCH:
    - Use ONLY the darkest tone of side hair.
    - Absolutely NO tone shift.
 
 4. TEXTURE MATCH:
-   - Maintain identical thickness, direction, and micro-waves of the original hair.
+   - Match thickness, direction, micro-waves, and crown swirl.
 
 5. INTEGRATION:
    - Blend borders invisibly.
@@ -147,7 +133,7 @@ function buildHairControlPrompt(analysisText?: string) {
     '{{current_norwood}}': 'Norwood IV',
     '{{target_norwood}}': 'Norwood II',
     '{{hairline_plan.description}}':
-      'Recreate a soft, natural-looking anterior hairline with micro irregularities. Maintain a gentle central peak and rounded temporal recessions.',
+      'Recreate a conservative, age-appropriate anterior hairline with micro irregularities; keep within ≤1–1.5 cm above lateral brow line.',
     '{{hairline_plan.frontal_band_thickness_cm}}': '2.0',
     '{{hairline_plan.temple_description}}':
       'Temple points should be reinforced but kept slightly softer than the frontal band for age-appropriate balance.',
@@ -165,9 +151,11 @@ function buildHairControlPrompt(analysisText?: string) {
   Object.entries(replacements).forEach(([token, value]) => {
     prompt = prompt.split(token).join(value);
   });
-  let combined = `${prompts.hair_base}\n\n${prompt}`;
+  let combined = `${prompts.hair_base}\n\n${prompt}\n\nHard limits:\n- Never place hair on intact forehead skin.\n- Never lower the hairline below mid-forehead proportion.\n- Absolutely no helmet-density walls; preserve temporal recess harmony.`;
   if (analysisText?.trim()) {
-    combined += `\n\nClinical analysis notes:\n${analysisText.trim()}\n\nExecute the transformation so that it fulfills the formal plan above and the specialist analysis exactly.`;
+    combined += `\n\nClinical analysis notes:\n${analysisText.trim()}\n\nExecute the transformation so that it fulfills the formal plan above, the hard limits, and the specialist analysis exactly.`;
+  } else {
+    combined += `\n\nFallback plan:\n- Use conservative Norwood II outline; keep temporal points open; fill only visible scalp loss.`;
   }
   return combined;
 }
@@ -491,7 +479,7 @@ export async function POST(req: Request) {
       throw new Error(attemptErrors.join(' | '));
     };
 
-    const modelTemperature = treatmentType === 'hair' ? 0.65 : 0.4;
+    const modelTemperature = 0.4;
     let transformedImageData: string;
 
     if (treatmentType === 'hair') {
