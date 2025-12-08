@@ -54,6 +54,10 @@ HAIRLINE & PROPORTION RULES:
 - Keep the anterior hairline within ≤1–1.5 cm above the lateral brow line and never below the mid-forehead proportion.
 - Do NOT cover intact forehead skin; fill only true scalp loss zones.
 - Preserve temporal angles; no “helmet” wall of hair.
+- If lighting hides scalp, infer miniaturization from asymmetry/temporal recession and frontal band thinning; do not assume zero loss.
+- Always assess temple corners and frontal midline for miniaturization; treat visible or suspected miniaturization as a fill target.
+- If loss is minimal but present, reinforce temples and frontal band with micro-irregular Norwood II contour; never lower below ≤1–1.5 cm above lateral brow.
+- Maintain left/right symmetry of the hairline and density within natural tolerance (no overfilling one temple relative to the other).
 
 FUE-STYLE DENSITY & DISTRIBUTION:
 - Treat new hair as FUE grafts placed one by one.
@@ -62,8 +66,9 @@ FUE-STYLE DENSITY & DISTRIBUTION:
 
 HAIR FILLING:
 - Fill ONLY the bald/thinning scalp areas.
-- DO NOT modify existing hair on the sides except for seamless blending.
+- DO NOT modify or densify existing native hair on the sides or covered zones, except seamless blending.
 - Eliminate scalp visibility in reconstructed zones without crossing onto forehead skin.
+- If scalp loss is minimal, leave hair unchanged; no densification of native hair.
 
 COLOR & TEXTURE LOCK:
 - Sample color ONLY from existing side hair; no tone shift, no greying, no brightening.
@@ -86,6 +91,8 @@ Add hair ONLY to bald/thinning scalp zones. Nothing else changes.
 
 SAFETY GUARD:
 If uncertain, default to a conservative Norwood II profile; do NOT lower the forehead or temporal points.
+If scalp loss is minimal, return unchanged; do NOT densify native hair.
+If scalp loss is minimal but present, reinforce miniaturized temple corners and frontal band; do NOT lower onto forehead skin.
 
 INPUT:
 VIEW ANGLE: {{view_angle}}
@@ -100,9 +107,12 @@ INSTRUCTIONS:
    - Reconstruct only the missing portions — never cross onto forehead skin.
 
 2. FILL ONLY BALD AREAS:
-   - Leave existing hair untouched except seamless blend.
+   - Leave existing hair untouched except seamless blend; do NOT thicken native hair shafts globally.
+   - Detect and fill miniaturized zones even if scalp is partially camouflaged by lighting; prioritize temples and frontal band gaps.
+   - Add grafts only where scalp or miniaturization is detected (frontal band ~2 cm, crown swirl if open).
    - Fill visible scalp with dense, natural strands; no transparency or patchiness.
-   - Avoid helmet walls; keep temporal recess harmony.
+   - Avoid helmet walls; keep temporal recess harmony; taper density away from frontal band and temple recesses.
+   - Balance density left/right; avoid asymmetry beyond natural micro-irregularities.
 
 3. COLOR MATCH:
    - Use ONLY the darkest tone of side hair.
@@ -122,6 +132,8 @@ NEGATIVE CONSTRAINTS:
 - NO background modification.
 - NO re-interpretation of lighting.
 - NO beautification filter.
+- NO darkening or brightening of hair globally.
+- NO volume addition to lateral/sides; no bulk increase of existing hair.
 
 `.trim()
 
@@ -151,11 +163,11 @@ function buildHairControlPrompt(analysisText?: string) {
   Object.entries(replacements).forEach(([token, value]) => {
     prompt = prompt.split(token).join(value);
   });
-  let combined = `${prompts.hair_base}\n\n${prompt}\n\nHard limits:\n- Never place hair on intact forehead skin.\n- Never lower the hairline below mid-forehead proportion.\n- Absolutely no helmet-density walls; preserve temporal recess harmony.`;
+  let combined = `${prompts.hair_base}\n\n${prompt}\n\nHard limits:\n- Never place hair on intact forehead skin.\n- Never lower the hairline below mid-forehead proportion or ≤1–1.5 cm above lateral brow.\n- Do not increase density on areas already covered with strong native hair.\n- Add grafts only where scalp or miniaturization is visible/suspected; no helmet-density walls; preserve temporal recess harmony.\n- Maintain left/right symmetry of hairline and density within natural tolerance.`;
   if (analysisText?.trim()) {
     combined += `\n\nClinical analysis notes:\n${analysisText.trim()}\n\nExecute the transformation so that it fulfills the formal plan above, the hard limits, and the specialist analysis exactly.`;
   } else {
-    combined += `\n\nFallback plan:\n- Use conservative Norwood II outline; keep temporal points open; fill only visible scalp loss.`;
+    combined += `\n\nFallback plan:\n- Use conservative Norwood II outline; keep temporal points open; fill only visible or suspected miniaturized scalp loss (frontal band ~2 cm, crown swirl if exposed).\n- If loss < Norwood II or scalp not visible, return unchanged (no densification).`;
   }
   return combined;
 }
@@ -280,6 +292,85 @@ async function generateHairPlanDescription(base64Image: string, mimeType: string
     throw new Error(
       `OpenAI hair analysis failed: ${error instanceof Error ? error.message : String(error)}`
     );
+  }
+}
+
+/**
+ * Lightweight visual check (Gemini) to see if teeth actually changed.
+ * Returns true if Gemini says "yes", otherwise false. Fails open (true) on errors.
+ */
+async function detectTeethChangeGemini(params: {
+  beforeBase64: string;
+  afterBase64: string;
+  beforeMime: string;
+  afterMime: string;
+  geminiApiKey: string;
+  shadeDesc?: string;
+  styleDesc?: string;
+}): Promise<boolean> {
+  const { beforeBase64, afterBase64, beforeMime, afterMime, geminiApiKey, shadeDesc, styleDesc } =
+    params;
+
+  if (!geminiApiKey) return true;
+
+  const expectation =
+    shadeDesc || styleDesc
+      ? `Target shade/style: ${shadeDesc ?? 'unspecified shade'}, ${styleDesc ?? 'unspecified style'}.`
+      : 'No specific shade/style requested.';
+
+  const prompt = [
+    'You are a strict dental QA checker.',
+    'Compare BEFORE and AFTER images and answer only "yes" or "no".',
+    'Answer "yes" only if teeth are visibly whitened or reshaped AND the requested shade/style appears applied.',
+    'Answer "no" if there is no visible change to the teeth or the request is not met.',
+    expectation,
+    'Response format: yes | no (lowercase).',
+  ].join('\n');
+
+  const parts: any[] = [
+    { text: prompt },
+    { text: 'BEFORE image:' },
+    {
+      inline_data: {
+        mime_type: beforeMime,
+        data: beforeBase64,
+      },
+    },
+    { text: 'AFTER image:' },
+    {
+      inline_data: {
+        mime_type: afterMime,
+        data: afterBase64,
+      },
+    },
+  ];
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: { temperature: 0, maxOutputTokens: 8 },
+        }),
+      }
+    );
+
+    if (!response.ok) return true;
+
+    const data = await response.json();
+    const text =
+      data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || '').join(' ').toLowerCase() ||
+      '';
+
+    if (text.includes('yes')) return true;
+    if (text.includes('no')) return false;
+    return true; // ambiguous -> fail open
+  } catch (error) {
+    console.warn('[transform-image] teeth change detection failed (gemini)', error);
+    return true; // fail open
   }
 }
 
@@ -448,7 +539,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const geminiModels =
+    const geminiModelsDefault =
       treatmentType === 'hair'
         ? ['gemini-3-pro-image-preview', 'gemini-2.5-flash-image']
         : ['gemini-2.5-flash-image', 'gemini-3-pro-image-preview'];
@@ -457,10 +548,11 @@ export async function POST(req: Request) {
       promptText: string,
       imageData: string,
       imageMime: string,
-      temperature: number
+      temperature: number,
+      models: string[] = geminiModelsDefault
     ) => {
       const attemptErrors: string[] = [];
-      for (const modelName of geminiModels) {
+      for (const modelName of models) {
         const result = await generateWithGeminiModel(
           modelName,
           promptText,
@@ -479,7 +571,7 @@ export async function POST(req: Request) {
       throw new Error(attemptErrors.join(' | '));
     };
 
-    const modelTemperature = 0.4;
+    const modelTemperature = 0.3;
     let transformedImageData: string;
 
     if (treatmentType === 'hair') {
@@ -516,6 +608,40 @@ export async function POST(req: Request) {
           },
           500
         );
+      }
+
+      // Teeth QA: check if teeth visibly changed; if not, run a boosted pass.
+      const shadeDesc = describeTeethShade(teethShade);
+      const styleDesc = describeTeethStyle(teethStyle);
+      const teethChanged = await detectTeethChangeGemini({
+        beforeBase64: base64Image,
+        afterBase64: transformedImageData,
+        beforeMime: mimeType,
+        afterMime: 'image/png',
+        geminiApiKey,
+        shadeDesc,
+        styleDesc,
+      });
+
+      if (!teethChanged) {
+        const boostedPrompt =
+          `${prompt}\n\nCritical QA override: visibly apply the requested teeth whitening/alignment` +
+          `${shadeDesc ? ` to ${shadeDesc}` : ''}` +
+          `${styleDesc ? ` with ${styleDesc}` : ''}. Ensure noticeable change while remaining natural and clinically realistic.`;
+
+        const boostedModels = ['gemini-3-pro-image-preview', 'gemini-2.5-flash-image'];
+        try {
+          transformedImageData = await runWithModels(
+            boostedPrompt,
+            base64Image,
+            mimeType,
+            0.55,
+            boostedModels
+          );
+        } catch (error) {
+          // if retry fails, keep first result but report
+          console.warn('[transform-image] teeth retry failed', error);
+        }
       }
     }
 
