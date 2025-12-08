@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import LandingPage from '@/components/LandingPage';
+import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
   title: 'Hair Transformation Preview | Natural Clinic',
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function HairPage() {
-  return <LandingPage initialTreatmentType="hair" />;
+  redirect('/teeth');
 }

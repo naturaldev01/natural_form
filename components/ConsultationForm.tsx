@@ -843,7 +843,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
   const renderShadeGuideVariant = (variant: 'mobile' | 'desktop') => {
     const isMobileVariant = variant === 'mobile';
-    const imageSrc = isMobileVariant ? '/assets/teeth_mobile_v1.png' : '/assets/teeth_web_v1.png';
+    const imageSrc = isMobileVariant ? '/assets/teeth_mobile_v1.jpg' : '/assets/teeth_web_v1.jpg';
     const aspectRatio = isMobileVariant ? '7485 / 12985' : '12970 / 7442';
     const segments = TEETH_SHADE_SEGMENTS[isMobileVariant ? 'mobile' : 'desktop'];
 
@@ -938,17 +938,6 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
               }`}
             >
               {t('form.treatment.teeth')}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTreatmentSelect('hair')}
-              className={`flex-1 py-3 px-6 rounded-lg font-medium transition-all ${
-                formData.treatmentType === 'hair'
-                  ? 'bg-[#006069] text-white shadow-lg'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {t('form.treatment.hair')}
             </button>
           </div>
         </div>
