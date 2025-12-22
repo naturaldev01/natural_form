@@ -19,22 +19,60 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
    BASE PROMPTS (revized & clinic-grade)
 ------------------------------------------------------- */
 const prompts: Record<string, string> = {
-  teeth: `
-Enhance only the teeth of the person in this photo.
+  teeth_base: `
+You are a professional dental imaging AI for a premium smile design clinic.
+Transform the teeth in this photo to show a realistic "after treatment" result.
 
-Goals:
-- Make the teeth look straight, well aligned and naturally shaped.
-- Whiten and refine the teeth to a professional but realistic shade.
-- Improve symmetry and surface quality while keeping a natural enamel texture.
+BASE TRANSFORMATION GOALS:
+- Make teeth straight, well-aligned, and naturally shaped
+- Improve symmetry and surface quality
+- Keep natural enamel texture and realistic appearance
+- Result should look like professional dental work, not artificial
 
-Strict rules:
-- Do NOT change the person's face, lips, eyes, skin tone or expression.
-- Do NOT change the mouth position or smile width.
-- Do NOT modify the hair, background, clothing or lighting.
-- Avoid overly bright, glowing or plastic-looking teeth.
+STRICT PRESERVATION RULES:
+- Do NOT change the person's face, lips, eyes, skin tone, or expression
+- Do NOT change the mouth position or smile width  
+- Do NOT modify hair, background, clothing, or lighting
+- Keep the same person - no face replacement
 
-Target look:
-- A realistic, high-end dental clinic “after treatment” result.
+OUTPUT: Same photo with only teeth transformed.
+`.trim(),
+
+  teeth_with_specs: `
+You are a professional dental imaging AI for a premium smile design clinic.
+Your task is to transform teeth according to EXACT clinical specifications.
+
+=== MANDATORY SPECIFICATIONS ===
+{{SHADE_SPEC}}
+{{STYLE_SPEC}}
+
+=== CRITICAL INSTRUCTIONS ===
+The shade and style above are MANDATORY requirements from the patient's consultation.
+You MUST visibly apply these specifications. The output teeth MUST clearly show:
+1. The exact color/shade requested (compare to dental shade guide)
+2. The exact shape/style requested (visible tooth contour changes)
+
+If the requested shade is bright (0M1, 0M2, 0M3, A1, B1), the teeth MUST appear noticeably whiter than the original.
+If a Hollywood or aggressive style is requested, the teeth shape MUST show visible enhancement.
+
+=== TRANSFORMATION GOALS ===
+- Make teeth straight, well-aligned, and naturally shaped
+- Apply the EXACT shade color specified above
+- Apply the EXACT style/shape specified above
+- Keep natural enamel texture while achieving the requested look
+
+=== STRICT PRESERVATION RULES ===
+- Do NOT change the person's face, lips, eyes, skin tone, or expression
+- Do NOT change the mouth position or smile width
+- Do NOT modify hair, background, clothing, or lighting
+
+=== QUALITY CHECK ===
+Before outputting, verify:
+- Does the tooth color match the requested shade? (MANDATORY)
+- Does the tooth shape match the requested style? (MANDATORY)
+- Is the result realistic and natural-looking? (REQUIRED)
+
+OUTPUT: Same photo with teeth transformed to EXACTLY match the requested shade and style.
 `.trim(),
 
 hair_base: `
@@ -308,24 +346,55 @@ async function detectTeethChangeGemini(params: {
   geminiApiKey: string;
   shadeDesc?: string;
   styleDesc?: string;
+  shadeCode?: string;
+  styleCode?: string;
 }): Promise<boolean> {
-  const { beforeBase64, afterBase64, beforeMime, afterMime, geminiApiKey, shadeDesc, styleDesc } =
+  const { beforeBase64, afterBase64, beforeMime, afterMime, geminiApiKey, shadeDesc, styleDesc, shadeCode, styleCode } =
     params;
 
   if (!geminiApiKey) return true;
 
-  const expectation =
-    shadeDesc || styleDesc
-      ? `Target shade/style: ${shadeDesc ?? 'unspecified shade'}, ${styleDesc ?? 'unspecified style'}.`
-      : 'No specific shade/style requested.';
+  // Build specific expectations based on what was requested
+  const expectations: string[] = [];
+  
+  if (shadeDesc && shadeCode) {
+    expectations.push(`SHADE CHECK: The teeth should now match "${shadeDesc}" (code: ${shadeCode}).`);
+    // Add specific brightness expectations for common shades
+    if (['0M1', '0M2', '0M3', 'A1', 'B1'].includes(shadeCode)) {
+      expectations.push('- These are BRIGHT shades. Teeth should appear noticeably WHITER than the original.');
+    }
+  }
+  
+  if (styleDesc && styleCode) {
+    expectations.push(`STYLE CHECK: The teeth shape should reflect "${styleDesc}" (code: ${styleCode}).`);
+    if (['HollywoodStyle', 'AggressiveStyle', 'DominantStyle'].includes(styleCode)) {
+      expectations.push('- This is a PRONOUNCED style. Tooth shape should show visible enhancement.');
+    }
+  }
 
   const prompt = [
-    'You are a strict dental QA checker.',
-    'Compare BEFORE and AFTER images and answer only "yes" or "no".',
-    'Answer "yes" only if teeth are visibly whitened or reshaped AND the requested shade/style appears applied.',
-    'Answer "no" if there is no visible change to the teeth or the request is not met.',
-    expectation,
-    'Response format: yes | no (lowercase).',
+    'You are a STRICT dental transformation QA checker.',
+    '',
+    'TASK: Compare BEFORE and AFTER images to verify the transformation was successful.',
+    '',
+    expectations.length > 0 ? 'EXPECTED CHANGES:' : 'EXPECTED: General teeth whitening/enhancement.',
+    ...expectations,
+    '',
+    'VERIFICATION CRITERIA:',
+    '1. Is there a VISIBLE difference in tooth color between BEFORE and AFTER?',
+    '2. Is there a VISIBLE difference in tooth shape between BEFORE and AFTER?',
+    '3. Do the AFTER teeth appear to match the requested specifications?',
+    '',
+    'Answer "yes" ONLY if:',
+    '- There is a clear, noticeable change in the teeth',
+    '- The change appears to match the requested shade/style',
+    '',
+    'Answer "no" if:',
+    '- The teeth look the same as before',
+    '- The change is too subtle to notice',
+    '- The requested shade/style was not applied',
+    '',
+    'Response: Answer with ONLY "yes" or "no" (lowercase, no explanation).',
   ].join('\n');
 
   const parts: any[] = [
@@ -531,21 +600,38 @@ export async function POST(req: Request) {
     let prompt = '';
 
     if (treatmentType === 'teeth') {
-      prompt = prompts.teeth;
       const shadeDesc = describeTeethShade(teethShade);
       const styleDesc = describeTeethStyle(teethStyle);
 
+      // Use specialized prompt if shade or style is specified
       if (shadeDesc || styleDesc) {
-        prompt += `\n\nApply the following specific settings:\n`;
-      }
-      if (shadeDesc) {
-        prompt += `- Tooth shade: ${shadeDesc} (shade code: ${teethShade}).\n`;
-      }
-      if (styleDesc) {
-        prompt += `- Tooth style: ${styleDesc} (style code: ${teethStyle}).\n`;
-      }
-      if (shadeDesc || styleDesc) {
-        prompt += `\nEnsure the results remain natural and clinically realistic.\n`;
+        prompt = prompts.teeth_with_specs;
+        
+        // Build shade specification
+        const shadeSpec = shadeDesc 
+          ? `SHADE: ${shadeDesc.toUpperCase()} (Code: ${teethShade})
+   - This is a MANDATORY color requirement
+   - The teeth MUST be transformed to match this exact shade
+   - Compare result to dental Vita shade guide`
+          : 'SHADE: Natural whitening (improve current shade naturally)';
+        
+        // Build style specification  
+        const styleSpec = styleDesc
+          ? `STYLE: ${styleDesc.toUpperCase()} (Code: ${teethStyle})
+   - This is a MANDATORY shape requirement
+   - The teeth contours MUST reflect this style
+   - Apply visible shape enhancement matching this style`
+          : 'STYLE: Natural enhancement (improve alignment and symmetry)';
+        
+        prompt = prompt
+          .replace('{{SHADE_SPEC}}', shadeSpec)
+          .replace('{{STYLE_SPEC}}', styleSpec);
+          
+        console.log(`[transform-image] Using teeth_with_specs prompt. Shade: ${teethShade}, Style: ${teethStyle}`);
+      } else {
+        // No specific shade/style - use base prompt
+        prompt = prompts.teeth_base;
+        console.log('[transform-image] Using teeth_base prompt (no shade/style specified)');
       }
     }
 
@@ -633,15 +719,44 @@ export async function POST(req: Request) {
         geminiApiKey,
         shadeDesc,
         styleDesc,
+        shadeCode: teethShade,
+        styleCode: teethStyle,
       });
 
       const needsRetry = identicalOutput || !teethChanged;
+      
+      if (needsRetry) {
+        console.log(`[transform-image] QA failed - teeth change not detected. Retrying with boosted prompt...`);
+      }
 
       if (needsRetry) {
-        const boostedPrompt =
-          `${prompt}\n\nCritical QA override: visibly apply the requested teeth whitening/alignment` +
-          `${shadeDesc ? ` to ${shadeDesc}` : ''}` +
-          `${styleDesc ? ` with ${styleDesc}` : ''}. Ensure noticeable change while remaining natural and clinically realistic.`;
+        // Build a more aggressive boosted prompt
+        const boostedPrompt = `
+CRITICAL RETRY - Previous attempt failed QA check.
+
+You MUST transform the teeth in this image. This is a MANDATORY requirement.
+
+${shadeDesc ? `REQUIRED SHADE: ${shadeDesc.toUpperCase()} (Code: ${teethShade})
+- The teeth MUST be visibly changed to this shade
+- This shade should be CLEARLY DIFFERENT from the original` : ''}
+
+${styleDesc ? `REQUIRED STYLE: ${styleDesc.toUpperCase()} (Code: ${teethStyle})
+- The tooth shape MUST reflect this style
+- The contours should be visibly enhanced` : ''}
+
+IMPORTANT:
+- The previous attempt did NOT make visible changes - you MUST do better
+- Apply MORE noticeable whitening/reshaping than a conservative approach
+- The change must be obvious when comparing before/after
+- Still maintain realistic, natural-looking results (no glowing/plastic teeth)
+
+STRICT RULES:
+- Do NOT change face, lips, eyes, skin, expression
+- Do NOT change hair, background, clothing, lighting
+- ONLY transform the teeth
+
+OUTPUT: Same photo with teeth CLEARLY transformed to match the specifications above.
+`.trim();
 
         const boostedModels = ['gemini-3-pro-image-preview', 'gemini-2.5-flash-image'];
         try {

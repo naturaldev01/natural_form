@@ -3,7 +3,7 @@
 import { useEffect, useState, type SVGProps } from 'react';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
-import { Upload, Loader2, Mail, X, CheckCircle, MessageCircle, Headphones } from 'lucide-react';
+import { Upload, Loader2, Mail, X, CheckCircle, MessageCircle, Headphones, Info, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useI18n } from '@/lib/i18n';
 import { SUPPORTED_LANGUAGES, type TranslationKey } from '@/lib/i18n/translations';
@@ -252,6 +252,13 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
   const [consentAccepted, setConsentAccepted] = useState(true);
   const [showShadeGuide, setShowShadeGuide] = useState(false);
   const [showStyleGuide, setShowStyleGuide] = useState(false);
+  const [showPhotoGuide, setShowPhotoGuide] = useState(false);
+  const [validatingPhoto, setValidatingPhoto] = useState(false);
+  const [validationError, setValidationError] = useState<{
+    show: boolean;
+    issues: string[];
+    reason: string;
+  } | null>(null);
 
   // Transformation results state
   const [transformationResults, setTransformationResults] = useState<TransformationResult[] | null>(null);
@@ -354,6 +361,44 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
     const newPreviews = previews.filter((_, i) => i !== index);
     setFormData({ ...formData, images: newImages });
     setPreviews(newPreviews);
+    // Clear validation error when removing images
+    setValidationError(null);
+  };
+
+  const validatePhoto = async (imageDataUrl: string, mimeType: string): Promise<{
+    isValid: boolean;
+    issues: string[];
+    reason: string;
+  }> => {
+    try {
+      const response = await fetch('/api/validate-photo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          imageData: imageDataUrl,
+          mimeType,
+        }),
+      });
+
+      if (!response.ok) {
+        // If validation fails, allow the photo (fail open)
+        console.warn('[validatePhoto] API error, allowing photo');
+        return { isValid: true, issues: [], reason: '' };
+      }
+
+      const data = await response.json();
+      return {
+        isValid: data.isValid,
+        issues: data.issues || [],
+        reason: data.reason || '',
+      };
+    } catch (error) {
+      // If validation fails, allow the photo (fail open)
+      console.warn('[validatePhoto] Error:', error);
+      return { isValid: true, issues: [], reason: '' };
+    }
   };
 
   const submitForm = async () => {
@@ -377,6 +422,32 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
     setLoading(true);
     setError(null);
+    setValidationError(null);
+
+    // Validate photos before processing (only for teeth treatment)
+    if (formData.treatmentType === 'teeth') {
+      setValidatingPhoto(true);
+      
+      for (let i = 0; i < previews.length; i++) {
+        const preview = previews[i];
+        const mimeType = formData.images[i]?.type || 'image/jpeg';
+        
+        const validationResult = await validatePhoto(preview, mimeType);
+        
+        if (!validationResult.isValid) {
+          setValidatingPhoto(false);
+          setLoading(false);
+          setValidationError({
+            show: true,
+            issues: validationResult.issues,
+            reason: validationResult.reason,
+          });
+          return;
+        }
+      }
+      
+      setValidatingPhoto(false);
+    }
 
     try {
       const results: TransformationResult[] = [];
@@ -976,22 +1047,29 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
     <>
       <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
         
+        {/* Treatment type buttons - only teeth visible for now */}
         <div className="space-y-1.5 sm:space-y-2">
-          <label className="block text-sm sm:text-base font-medium text-gray-700 mb-3">
-           
-          </label>
           <div className="flex gap-4">
             <button
               type="button"
               onClick={() => handleTreatmentSelect('teeth')}
+              className="flex-1 py-3 px-6 rounded-xl font-medium transition-all shadow-sm bg-[#006069] text-white shadow-lg"
+            >
+              {t('form.treatment.teeth')}
+            </button>
+            {/* Hair button hidden for now
+            <button
+              type="button"
+              onClick={() => handleTreatmentSelect('hair')}
               className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all shadow-sm ${
-                formData.treatmentType === 'teeth'
+                formData.treatmentType === 'hair'
                   ? 'bg-[#006069] text-white shadow-lg'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              {t('form.treatment.teeth')}
+              {t('form.treatment.hair')}
             </button>
+            */}
           </div>
         </div>
 
@@ -1074,13 +1152,23 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            {t('form.upload.label')}{' '}
-            {formData.images.length > 0 &&
-              `(${t('form.upload.selectedCount', {
-                count: formData.images.length.toString(),
-              })})`}
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700">
+              {t('form.upload.label')}{' '}
+              {formData.images.length > 0 &&
+                `(${t('form.upload.selectedCount', {
+                  count: formData.images.length.toString(),
+                })})`}
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowPhotoGuide(true)}
+              className="flex items-center gap-1.5 text-sm text-[#006069] hover:text-[#004750] font-medium transition-colors"
+            >
+              <Info className="w-4 h-4" />
+              {t('photoGuide.link')}
+            </button>
+          </div>
           <div className="relative">
             <input
               type="file"
@@ -1147,10 +1235,15 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
         <button
           type="submit"
-          disabled={loading || !consentAccepted || formData.images.length === 0}
+          disabled={loading || validatingPhoto || !consentAccepted || formData.images.length === 0}
           className="w-full py-3 px-5 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
         >
-          {loading ? (
+          {validatingPhoto ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              {t('validation.checking')}
+            </>
+          ) : loading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
               {t('form.submit.loading')}
@@ -1646,6 +1739,173 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                   })
                 : t('styleGuide.selectedNone')}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Validation Error Modal */}
+      {validationError?.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 sm:p-8 space-y-5 animate-in zoom-in duration-300 border border-gray-100">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-amber-100 rounded-full mb-4">
+                <span className="text-3xl">😬</span>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                {t('validation.failed.title')}
+              </h3>
+              <p className="text-gray-600 text-sm">
+                {t('validation.failed.description')}
+              </p>
+            </div>
+
+            {validationError.issues.length > 0 && (
+              <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+                <p className="text-sm font-semibold text-gray-800 mb-2">
+                  {t('validation.failed.issues')}
+                </p>
+                <ul className="space-y-1">
+                  {validationError.issues.map((issue, index) => (
+                    <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
+                      <X className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <span>{issue}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setValidationError(null);
+                  setShowPhotoGuide(true);
+                }}
+                className="w-full py-3 px-6 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
+              >
+                <Info className="w-5 h-5" />
+                {t('validation.failed.viewGuide')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setValidationError(null);
+                  setFormData(prev => ({ ...prev, images: [] }));
+                  setPreviews([]);
+                }}
+                className="w-full py-3 px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all"
+              >
+                {t('validation.failed.tryAgain')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Photo Guide Modal */}
+      {showPhotoGuide && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-5 sm:p-6 space-y-4 sm:space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-[#006069] uppercase tracking-wide">
+                  {t('photoGuide.reference')}
+                </p>
+                <h3 className="text-2xl font-bold text-gray-900">{t('photoGuide.title')}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPhotoGuide(false)}
+                className="text-gray-500 hover:text-gray-800 text-2xl leading-none"
+                aria-label={t('aria.closePhotoGuide')}
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-sm text-gray-600">
+              {t('photoGuide.description')}
+            </p>
+            
+            {/* Example Photos Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Female Example */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">👩</span>
+                  <h4 className="text-base font-semibold text-gray-900">{t('photoGuide.femaleExample')}</h4>
+                </div>
+                <div className="relative rounded-xl overflow-hidden border-2 border-gray-100">
+                  <Image
+                    src="/assets/model_women.jpeg"
+                    alt={t('photoGuide.femaleExample')}
+                    width={400}
+                    height={500}
+                    className="w-full h-auto object-cover"
+                  />
+                  <div className="absolute top-3 right-3 bg-emerald-500 text-white px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-lg">
+                    <Check className="w-3.5 h-3.5" />
+                    {t('photoGuide.goodExample')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Male Example */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">👨</span>
+                  <h4 className="text-base font-semibold text-gray-900">{t('photoGuide.maleExample')}</h4>
+                </div>
+                <div className="relative rounded-xl overflow-hidden border-2 border-gray-100">
+                  <Image
+                    src="/assets/model_men.jpeg"
+                    alt={t('photoGuide.maleExample')}
+                    width={400}
+                    height={500}
+                    className="w-full h-auto object-cover"
+                  />
+                  <div className="absolute top-3 right-3 bg-emerald-500 text-white px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 shadow-lg">
+                    <Check className="w-3.5 h-3.5" />
+                    {t('photoGuide.goodExample')}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Tips Section */}
+            <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">💡</span>
+                <h4 className="text-sm font-semibold text-gray-900">{t('photoGuide.tipsTitle')}</h4>
+              </div>
+              <ul className="space-y-2">
+                <li className="flex items-start gap-2 text-sm text-gray-700">
+                  <Check className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                  <span>{t('photoGuide.tip1')}</span>
+                </li>
+                <li className="flex items-start gap-2 text-sm text-gray-700">
+                  <Check className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                  <span>{t('photoGuide.tip2')}</span>
+                </li>
+                <li className="flex items-start gap-2 text-sm text-gray-700">
+                  <Check className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                  <span>{t('photoGuide.tip3')}</span>
+                </li>
+                <li className="flex items-start gap-2 text-sm text-gray-700">
+                  <Check className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                  <span>{t('photoGuide.tip4')}</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Got it Button */}
+            <button
+              type="button"
+              onClick={() => setShowPhotoGuide(false)}
+              className="w-full py-3 px-6 bg-[#006069] hover:bg-[#004750] text-white font-semibold rounded-xl transition-all shadow-lg"
+            >
+              {t('photoGuide.understood')}
+            </button>
           </div>
         </div>
       )}
