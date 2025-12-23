@@ -34,7 +34,85 @@ export default function DashboardPage() {
   const [sortField, setSortField] = useState<'created_at' | 'first_name' | 'email'>('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const itemsPerPage = 20;
+
+  // Date preset helpers
+  const getDatePreset = (preset: string) => {
+    const today = new Date();
+    const formatDate = (date: Date) => date.toISOString().split('T')[0];
+    
+    switch (preset) {
+      case 'today':
+        return { from: formatDate(today), to: formatDate(today) };
+      case 'yesterday': {
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        return { from: formatDate(yesterday), to: formatDate(yesterday) };
+      }
+      case 'last7days': {
+        const last7 = new Date(today);
+        last7.setDate(last7.getDate() - 6);
+        return { from: formatDate(last7), to: formatDate(today) };
+      }
+      case 'last30days': {
+        const last30 = new Date(today);
+        last30.setDate(last30.getDate() - 29);
+        return { from: formatDate(last30), to: formatDate(today) };
+      }
+      case 'thisWeek': {
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Monday
+        return { from: formatDate(startOfWeek), to: formatDate(today) };
+      }
+      case 'thisMonth': {
+        const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        return { from: formatDate(startOfMonth), to: formatDate(today) };
+      }
+      case 'lastMonth': {
+        const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+        return { from: formatDate(startOfLastMonth), to: formatDate(endOfLastMonth) };
+      }
+      default:
+        return { from: '', to: '' };
+    }
+  };
+
+  const applyDatePreset = (preset: string) => {
+    const { from, to } = getDatePreset(preset);
+    setDateFrom(from);
+    setDateTo(to);
+    setCurrentPage(1);
+    setShowDatePicker(false);
+  };
+
+  const getActiveDateLabel = () => {
+    if (!dateFrom && !dateTo) return 'Select Date';
+    if (dateFrom && dateTo) {
+      // Check for presets
+      const today = new Date().toISOString().split('T')[0];
+      if (dateFrom === today && dateTo === today) return 'Today';
+      
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      if (dateFrom === yesterdayStr && dateTo === yesterdayStr) return 'Yesterday';
+      
+      // Format as date range
+      const fromDate = new Date(dateFrom);
+      const toDate = new Date(dateTo);
+      const formatShort = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      
+      if (dateFrom === dateTo) return formatShort(fromDate);
+      return `${formatShort(fromDate)} - ${formatShort(toDate)}`;
+    }
+    if (dateFrom) return `From ${new Date(dateFrom).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+    if (dateTo) return `Until ${new Date(dateTo).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+    return 'Select Date';
+  };
 
   const checkAuth = useCallback(async () => {
     try {
@@ -134,6 +212,20 @@ export default function DashboardPage() {
     // Hide test data
     if (isTestData(consultation.email, consultation.first_name, consultation.last_name)) return false;
     
+    // Date filter
+    const consultationDate = new Date(consultation.created_at);
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom);
+      fromDate.setHours(0, 0, 0, 0);
+      if (consultationDate < fromDate) return false;
+    }
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      if (consultationDate > toDate) return false;
+    }
+    
+    // Search filter
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
     return (
@@ -318,8 +410,136 @@ export default function DashboardPage() {
                       setSearchTerm(e.target.value);
                       setCurrentPage(1);
                     }}
-                    className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] w-64"
+                    className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] w-64"
                   />
+                </div>
+
+                {/* Date Filters */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowDatePicker(!showDatePicker)}
+                    className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm transition-colors ${
+                      dateFrom || dateTo 
+                        ? 'bg-[#006069]/10 border-[#006069] text-[#006069]' 
+                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <Calendar className="w-4 h-4" />
+                    <span className="font-medium">{getActiveDateLabel()}</span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showDatePicker ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Date Picker Dropdown */}
+                  {showDatePicker && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-10" 
+                        onClick={() => setShowDatePicker(false)}
+                      />
+                      <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-4 z-20 w-80">
+                        {/* Quick Presets */}
+                        <div className="mb-4">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Quick Select</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => applyDatePreset('today')}
+                              className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-left"
+                            >
+                              Today
+                            </button>
+                            <button
+                              onClick={() => applyDatePreset('yesterday')}
+                              className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-left"
+                            >
+                              Yesterday
+                            </button>
+                            <button
+                              onClick={() => applyDatePreset('last7days')}
+                              className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-left"
+                            >
+                              Last 7 Days
+                            </button>
+                            <button
+                              onClick={() => applyDatePreset('last30days')}
+                              className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-left"
+                            >
+                              Last 30 Days
+                            </button>
+                            <button
+                              onClick={() => applyDatePreset('thisWeek')}
+                              className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-left"
+                            >
+                              This Week
+                            </button>
+                            <button
+                              onClick={() => applyDatePreset('thisMonth')}
+                              className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-left"
+                            >
+                              This Month
+                            </button>
+                            <button
+                              onClick={() => applyDatePreset('lastMonth')}
+                              className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-left col-span-2"
+                            >
+                              Last Month
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Custom Date Range */}
+                        <div className="border-t border-gray-100 pt-4">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Custom Range</p>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              <label className="text-xs text-gray-500 mb-1 block">From</label>
+                              <input
+                                type="date"
+                                value={dateFrom}
+                                onChange={(e) => {
+                                  setDateFrom(e.target.value);
+                                  setCurrentPage(1);
+                                }}
+                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069]"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <label className="text-xs text-gray-500 mb-1 block">To</label>
+                              <input
+                                type="date"
+                                value={dateTo}
+                                onChange={(e) => {
+                                  setDateTo(e.target.value);
+                                  setCurrentPage(1);
+                                }}
+                                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069]"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                          <button
+                            onClick={() => {
+                              setDateFrom('');
+                              setDateTo('');
+                              setCurrentPage(1);
+                              setShowDatePicker(false);
+                            }}
+                            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                          >
+                            Clear
+                          </button>
+                          <button
+                            onClick={() => setShowDatePicker(false)}
+                            className="px-4 py-2 bg-[#006069] hover:bg-[#004750] text-white text-sm font-medium rounded-lg transition-colors"
+                          >
+                            Apply
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Export */}
