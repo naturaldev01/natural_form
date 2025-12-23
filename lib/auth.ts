@@ -5,7 +5,7 @@ export interface UserProfile {
   email: string;
   first_name: string;
   last_name: string;
-  role: 'patient' | 'sales' | 'doctor' | 'admin';
+  role: 'sales' | 'marketing' | 'admin';
   phone?: string;
   is_approved: boolean;
   created_at: string;
@@ -17,7 +17,7 @@ export interface SignUpData {
   password: string;
   firstName: string;
   lastName: string;
-  role: 'patient' | 'sales';
+  role: 'sales' | 'marketing';
   phone?: string;
 }
 
@@ -68,7 +68,18 @@ export async function signIn(data: SignInData) {
       throw new Error('No user returned from sign in');
     }
 
-    const profile = await getUserProfile(authData.user.id);
+    // Wait a moment for the session to be properly set before querying profile
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Try to get profile, with retry
+    let profile = await getUserProfile(authData.user.id);
+    
+    // If profile not found, wait and retry once more (RLS might need session to propagate)
+    if (!profile) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      profile = await getUserProfile(authData.user.id);
+    }
+    
     return { user: authData.user, profile };
 }
 
@@ -99,6 +110,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     .single();
 
   if (error) {
+    console.error('getUserProfile error:', error.message, 'userId:', userId);
     return null;
   }
 

@@ -14,6 +14,7 @@ interface UserWithProfile extends UserProfile {
   // Additional fields if needed
 }
 
+
 interface Consultation {
   id: string;
   first_name: string;
@@ -40,7 +41,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserWithProfile[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('pending');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'sales' | 'doctor' | 'patient'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'sales' | 'marketing' | 'admin'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
   
@@ -225,7 +226,40 @@ export default function AdminPage() {
     }
   };
 
+  // Helper function to check if consultation data should be hidden (test data for consultations)
+  const isTestConsultationData = (email?: string, firstName?: string, lastName?: string) => {
+    if (!email && !firstName && !lastName) return false;
+    
+    const emailLower = email?.toLowerCase() || '';
+    const fullName = `${firstName || ''} ${lastName || ''}`.toLowerCase();
+    
+    // Hide test consultation data (internal emails and specific test accounts)
+    if (emailLower.includes('@natural.clinic')) return true;
+    if (emailLower.includes('@naturalclinic.tr')) return true;
+    if (emailLower === 'oguzhansivri53@gmail.com') return true;
+    if (fullName.includes('oğuzhan sivri') || fullName.includes('oguzhan sivri')) return true;
+    
+    return false;
+  };
+
+  // For user management - only hide specific test accounts, not team members
+  const isTestUserData = (email?: string, firstName?: string, lastName?: string) => {
+    if (!email && !firstName && !lastName) return false;
+    
+    const emailLower = email?.toLowerCase() || '';
+    const fullName = `${firstName || ''} ${lastName || ''}`.toLowerCase();
+    
+    // Only hide specific test accounts, NOT team members (@natural.clinic, @naturalclinic.tr)
+    if (emailLower === 'oguzhansivri53@gmail.com') return true;
+    if (fullName.includes('oğuzhan sivri') || fullName.includes('oguzhan sivri')) return true;
+    
+    return false;
+  };
+
   const filteredUsers = users.filter(user => {
+    // Hide test user data (but show team members)
+    if (isTestUserData(user.email, user.first_name, user.last_name)) return false;
+    
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
     return (
@@ -236,6 +270,9 @@ export default function AdminPage() {
   });
 
   const filteredConsultations = consultations.filter(consultation => {
+    // Hide test consultation data
+    if (isTestConsultationData(consultation.email, consultation.first_name, consultation.last_name)) return false;
+    
     if (!consultationSearch) return true;
     const search = consultationSearch.toLowerCase();
     return (
@@ -247,7 +284,11 @@ export default function AdminPage() {
     );
   });
 
-  const pendingCount = users.filter(u => !u.is_approved && u.role === 'sales').length;
+  // Filter out test data from counts (use consultation filter for real data counts)
+  const realUsers = users.filter(u => !isTestUserData(u.email, u.first_name, u.last_name));
+  const realConsultations = consultations.filter(c => !isTestConsultationData(c.email, c.first_name, c.last_name));
+  
+  const pendingCount = realUsers.filter(u => !u.is_approved && (u.role === 'sales' || u.role === 'marketing')).length;
 
   if (loading) {
     return (
@@ -262,7 +303,7 @@ export default function AdminPage() {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'admin': return 'bg-purple-100 text-purple-700';
-      case 'doctor': return 'bg-blue-100 text-blue-700';
+      case 'marketing': return 'bg-blue-100 text-blue-700';
       case 'sales': return 'bg-green-100 text-green-700';
       default: return 'bg-gray-100 text-gray-700';
     }
@@ -359,7 +400,7 @@ export default function AdminPage() {
               <FileImage className="w-5 h-5" />
               Consultations
               <span className="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full">
-                {consultations.length}
+                {realConsultations.length}
               </span>
             </div>
           </button>
@@ -375,7 +416,7 @@ export default function AdminPage() {
                 <Users className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{realUsers.length}</p>
                 <p className="text-sm text-gray-500">Total Users</p>
               </div>
             </div>
@@ -400,7 +441,7 @@ export default function AdminPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {users.filter(u => u.is_approved).length}
+                  {realUsers.filter(u => u.is_approved).length}
                 </p>
                 <p className="text-sm text-gray-500">Approved</p>
               </div>
@@ -414,9 +455,9 @@ export default function AdminPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {users.filter(u => u.role === 'sales').length}
+                  {realUsers.filter(u => u.role === 'sales' || u.role === 'marketing').length}
                 </p>
-                <p className="text-sm text-gray-500">Sales Reps</p>
+                <p className="text-sm text-gray-500">Sales & Marketing</p>
               </div>
             </div>
           </div>
@@ -484,8 +525,8 @@ export default function AdminPage() {
                 >
                   <option value="all">All Roles</option>
                   <option value="sales">Sales</option>
-                  <option value="doctor">Doctor</option>
-                  <option value="patient">Patient</option>
+                  <option value="marketing">Marketing</option>
+                  <option value="admin">Admin</option>
                 </select>
 
                 {/* Refresh */}
@@ -560,9 +601,8 @@ export default function AdminPage() {
                             user.id === profile.id ? 'opacity-50 cursor-not-allowed' : ''
                           }`}
                         >
-                          <option value="patient">Patient</option>
                           <option value="sales">Sales</option>
-                          <option value="doctor">Doctor</option>
+                          <option value="marketing">Marketing</option>
                           <option value="admin">Admin</option>
                         </select>
                       </td>
@@ -714,7 +754,7 @@ export default function AdminPage() {
                             <div className="flex items-center gap-2">
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium ${
                                 consultation.creator.role === 'admin' ? 'bg-purple-500' :
-                                consultation.creator.role === 'doctor' ? 'bg-blue-500' :
+                                consultation.creator.role === 'marketing' ? 'bg-blue-500' :
                                 consultation.creator.role === 'sales' ? 'bg-green-500' : 'bg-gray-500'
                               }`}>
                                 {consultation.creator.first_name?.charAt(0)}{consultation.creator.last_name?.charAt(0)}
