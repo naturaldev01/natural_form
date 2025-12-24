@@ -89,32 +89,51 @@ export async function signOut() {
   if (error) throw error;
 }
 
-// Get current user
+// Get current user - simplified without custom timeout
+// Supabase has its own timeout settings
 export async function getCurrentUser() {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  
-  if (error || !user) {
+  console.log('[DEBUG] getCurrentUser called');
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    console.log('[DEBUG] getUser response - user:', user?.id, 'error:', error);
+    
+    if (error || !user) {
+      console.log('[DEBUG] No user found or error');
+      return null;
+    }
+    
+    const profile = await getUserProfile(user.id);
+    console.log('[DEBUG] getCurrentUser complete - profile:', profile?.email);
+    return { user, profile };
+  } catch (err) {
+    console.error('getCurrentUser error:', err);
     return null;
   }
-  
-  const profile = await getUserProfile(user.id);
-  return { user, profile };
 }
 
-// Get user profile
+// Get user profile - simplified without custom timeout
+// Supabase has its own timeout (60s for authenticated users)
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
-  const { data, error } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
+  console.log('[DEBUG] getUserProfile called for userId:', userId);
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    console.log('[DEBUG] getUserProfile response - data:', data, 'error:', error);
+    
+    if (error) {
+      console.error('getUserProfile error:', error.message, 'code:', error.code, 'userId:', userId);
+      return null;
+    }
 
-  if (error) {
-    console.error('getUserProfile error:', error.message, 'userId:', userId);
+    return data;
+  } catch (err) {
+    console.error('getUserProfile exception:', err);
     return null;
   }
-
-  return data;
 }
 
 // Check if user has required role

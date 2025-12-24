@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { 
   Loader2, LogOut, Users, Search, RefreshCw, 
   Calendar, Phone, Mail, User, TrendingUp, Clock,
-  Download, Filter, ChevronDown, ChevronUp
+  Download, Filter, ChevronDown, ChevronUp, Eye, X, FileImage, FileText
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getCurrentUser, signOut, UserProfile, hasRole } from '@/lib/auth';
@@ -19,6 +19,9 @@ interface Consultation {
   phone: string;
   treatment_type: string;
   created_at: string;
+  original_image_url?: string;
+  transformed_image_url?: string;
+  pdf_url?: string;
 }
 
 // Minimum date for data: December 20, 2025
@@ -37,6 +40,7 @@ export default function DashboardPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedConsultation, setSelectedConsultation] = useState<Consultation | null>(null);
   const itemsPerPage = 20;
 
   // Date preset helpers
@@ -115,51 +119,69 @@ export default function DashboardPage() {
   };
 
   const checkAuth = useCallback(async () => {
+    console.log('[DEBUG] checkAuth started');
     try {
       const userData = await getCurrentUser();
+      console.log('[DEBUG] getCurrentUser result:', userData);
       
       if (!userData || !userData.profile) {
+        console.log('[DEBUG] No user or profile, redirecting to login');
         router.push('/login');
         return;
       }
 
       // Only sales, marketing and admin can access this page
       if (!hasRole(userData.profile, ['admin', 'sales', 'marketing'])) {
+        console.log('[DEBUG] User does not have required role');
         router.push('/');
         return;
       }
 
       // Check if approved
       if (!userData.profile.is_approved) {
+        console.log('[DEBUG] User not approved');
         router.push('/login');
         return;
       }
 
+      console.log('[DEBUG] Auth successful, setting profile:', userData.profile);
       setProfile(userData.profile);
-    } catch {
+    } catch (err) {
+      console.error('[DEBUG] checkAuth error:', err);
       router.push('/login');
     } finally {
       setLoading(false);
+      console.log('[DEBUG] checkAuth finished');
     }
   }, [router]);
 
   const fetchConsultations = useCallback(async () => {
     setLoadingData(true);
+    console.log('[DEBUG] fetchConsultations started, MIN_DATE:', MIN_DATE, 'sortField:', sortField, 'sortOrder:', sortOrder);
     try {
       // Fetch only teeth consultations from December 20, 2025 onwards
+      // Limited to 200 records to prevent timeout - use filters to narrow down
+      console.log('[DEBUG] Calling supabase...');
       const { data, error } = await supabase
         .from('consultations')
-        .select('id, first_name, last_name, email, phone, treatment_type, created_at')
+        .select('id, first_name, last_name, email, phone, treatment_type, created_at, original_image_url, transformed_image_url, pdf_url', { count: 'none' })
         .eq('treatment_type', 'teeth')
         .gte('created_at', MIN_DATE)
-        .order(sortField, { ascending: sortOrder === 'asc' });
+        .order(sortField, { ascending: sortOrder === 'asc' })
+        .limit(200);
 
-      if (error) throw error;
+      console.log('[DEBUG] Supabase response - data:', data?.length, 'error:', error);
+      if (error) {
+        console.error('[DEBUG] Supabase error details:', JSON.stringify(error));
+        throw error;
+      }
       setConsultations(data || []);
+      console.log('[DEBUG] Consultations set, count:', (data || []).length);
     } catch (err) {
-      console.error('Failed to fetch consultations:', err);
+      console.error('[DEBUG] Failed to fetch consultations:', err);
     } finally {
       setLoadingData(false);
+      console.log('[DEBUG] fetchConsultations finished');
     }
   }, [sortField, sortOrder]);
 
@@ -276,8 +298,9 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-[#006069]" />
+        <p className="text-gray-500 text-sm">Loading dashboard...</p>
       </div>
     );
   }
@@ -615,6 +638,12 @@ export default function DashboardPage() {
                         )}
                       </button>
                     </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Images
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      PDF
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -666,6 +695,34 @@ export default function DashboardPage() {
                           })}
                         </div>
                       </td>
+                      <td className="px-6 py-4">
+                        {(consultation.original_image_url || consultation.transformed_image_url) ? (
+                          <button
+                            onClick={() => setSelectedConsultation(consultation)}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-[#006069]/10 hover:bg-[#006069]/20 text-[#006069] text-sm font-medium rounded-lg transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View
+                          </button>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {consultation.pdf_url ? (
+                          <a
+                            href={consultation.pdf_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-medium rounded-lg transition-colors"
+                          >
+                            <FileText className="w-4 h-4" />
+                            PDF
+                          </a>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -702,6 +759,101 @@ export default function DashboardPage() {
           )}
         </div>
       </main>
+
+      {/* Image Modal */}
+      {selectedConsultation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {selectedConsultation.first_name} {selectedConsultation.last_name}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {new Date(selectedConsultation.created_at).toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedConsultation(null)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {/* Contact Info */}
+              <div className="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-gray-400" />
+                  <a href={`mailto:${selectedConsultation.email}`} className="text-sm text-gray-600 hover:text-[#006069]">
+                    {selectedConsultation.email || '-'}
+                  </a>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-gray-400" />
+                  <a href={`tel:${selectedConsultation.phone}`} className="text-sm text-gray-600 hover:text-[#006069]">
+                    {selectedConsultation.phone || '-'}
+                  </a>
+                </div>
+              </div>
+
+              {/* Before/After Images */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Before */}
+                <div>
+                  <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <FileImage className="w-4 h-4" />
+                    Before (Original)
+                  </p>
+                  <div className="aspect-[4/3] bg-gray-100 rounded-xl overflow-hidden">
+                    {selectedConsultation.original_image_url ? (
+                      <img
+                        src={selectedConsultation.original_image_url}
+                        alt="Before"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <span>No image available</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* After */}
+                <div>
+                  <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <FileImage className="w-4 h-4" />
+                    After (Transformed)
+                  </p>
+                  <div className="aspect-[4/3] bg-gray-100 rounded-xl overflow-hidden">
+                    {selectedConsultation.transformed_image_url ? (
+                      <img
+                        src={selectedConsultation.transformed_image_url}
+                        alt="After"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <span>No image available</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

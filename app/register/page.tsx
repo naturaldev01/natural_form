@@ -127,7 +127,7 @@ export default function RegisterPage() {
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                     required
                     placeholder="John"
-                    className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all text-gray-900 placeholder:text-gray-400"
+                    className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all text-black placeholder:text-gray-500"
                   />
                 </div>
               </div>
@@ -141,7 +141,7 @@ export default function RegisterPage() {
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   required
                   placeholder="Doe"
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all text-gray-900 placeholder:text-gray-400"
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all text-black placeholder:text-gray-500"
                 />
               </div>
             </div>
@@ -159,7 +159,7 @@ export default function RegisterPage() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
                   placeholder="you@example.com"
-                  className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all text-gray-900 placeholder:text-gray-400"
+                  className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all text-black placeholder:text-gray-500"
                 />
               </div>
             </div>
@@ -176,7 +176,7 @@ export default function RegisterPage() {
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="+90 555 123 4567"
-                  className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all text-gray-900 placeholder:text-gray-400"
+                  className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all text-black placeholder:text-gray-500"
                 />
               </div>
             </div>
@@ -225,7 +225,7 @@ export default function RegisterPage() {
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
                   placeholder="••••••••"
-                  className="w-full pl-11 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all text-gray-900 placeholder:text-gray-400"
+                  className="w-full pl-11 pr-12 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all text-black placeholder:text-gray-500"
                 />
                 <button
                   type="button"
@@ -250,7 +250,7 @@ export default function RegisterPage() {
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                   required
                   placeholder="••••••••"
-                  className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all text-gray-900 placeholder:text-gray-400"
+                  className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] transition-all text-black placeholder:text-gray-500"
                 />
               </div>
             </div>

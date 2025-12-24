@@ -120,11 +120,12 @@ export default function AdminPage() {
   const fetchConsultations = async () => {
     setLoadingConsultations(true);
     try {
-      // Fetch consultations
+      // Fetch consultations - limited to 200 to prevent timeout
       const { data: consultationsData, error: consultationsError } = await supabase
         .from('consultations')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*', { count: 'none' })
+        .order('created_at', { ascending: false })
+        .limit(200);
 
       if (consultationsError) throw consultationsError;
 
