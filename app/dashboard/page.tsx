@@ -266,13 +266,14 @@ export default function DashboardPage() {
   );
 
   const exportToCSV = () => {
-    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Date'];
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Date', 'PDF URL'];
     const csvData = filteredConsultations.map(c => [
       c.first_name,
       c.last_name,
       c.email,
       c.phone,
-      new Date(c.created_at).toLocaleString()
+      new Date(c.created_at).toLocaleString(),
+      c.pdf_url || ''
     ]);
     
     const csvContent = [
