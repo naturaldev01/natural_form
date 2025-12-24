@@ -123,7 +123,7 @@ export default function AdminPage() {
       // Fetch consultations - limited to 200 to prevent timeout
       const { data: consultationsData, error: consultationsError } = await supabase
         .from('consultations')
-        .select('*', { count: 'none' })
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(200);
 

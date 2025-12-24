@@ -164,7 +164,7 @@ export default function DashboardPage() {
       console.log('[DEBUG] Calling supabase...');
       const { data, error } = await supabase
         .from('consultations')
-        .select('id, first_name, last_name, email, phone, treatment_type, created_at, original_image_url, transformed_image_url, pdf_url', { count: 'none' })
+        .select('id, first_name, last_name, email, phone, treatment_type, created_at, original_image_url, transformed_image_url, pdf_url')
         .eq('treatment_type', 'teeth')
         .gte('created_at', MIN_DATE)
         .order(sortField, { ascending: sortOrder === 'asc' })
