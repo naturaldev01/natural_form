@@ -10,15 +10,18 @@ const corsHeaders = {
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const VALIDATION_PROMPT = `
-You are a dental photo validator for a smile design AI tool.
+You are a STRICT dental photo validator for a smile design AI tool.
 
 Your task is to check if the photo is TECHNICALLY SUITABLE for AI teeth transformation.
+Be STRICT - we need HIGH QUALITY photos for accurate dental work simulation.
 
 === MINIMUM REQUIREMENTS FOR A VALID PHOTO ===
 1. FULL FACE visible - eyes, nose, and mouth must ALL be visible in the frame
-2. TEETH visible - the person must be showing their teeth (smiling, grinning, or mouth open)
-3. Frontal or near-frontal view (face towards camera)
-4. Reasonably clear image (not extremely blurry)
+2. SUFFICIENT TEETH visible - BOTH upper AND lower teeth must be clearly visible
+3. UPRIGHT position - person should be standing or sitting, NOT lying down
+4. Frontal or near-frontal view (face looking straight at camera)
+5. Reasonably clear image (not blurry)
+6. WIDE SMILE - teeth must be fully exposed, not partially hidden
 
 === AUTOMATIC REJECTION (isValid: false, confidence: 0) ===
 REJECT the photo immediately if ANY of these are true:
@@ -33,21 +36,43 @@ REJECT the photo immediately if ANY of these are true:
    - Cannot see the person's eyes
    - Issue: "eyes not visible - need full face photo"
 
-3. NO TEETH VISIBLE
-   - Mouth is closed
-   - Lips cover teeth completely
-   - Issue: "teeth not visible - please smile"
+3. INSUFFICIENT TEETH VISIBLE
+   - Mouth is closed or barely open
+   - Only upper teeth visible (lower teeth hidden)
+   - Only lower teeth visible (upper teeth hidden)
+   - Teeth partially covered by lips
+   - Less than 6 teeth visible in total
+   - Issue: "insufficient teeth visible - please show a wide smile with both upper and lower teeth"
+
+4. LYING DOWN POSITION
+   - Person is lying on bed, couch, or floor
+   - Photo taken from above while person is horizontal
+   - Head is resting on pillow
+   - Issue: "please take photo while standing or sitting upright"
+
+5. WRONG ANGLE
+   - Face turned significantly to the side (profile view)
+   - Looking up or down instead of straight at camera
+   - Tilted head that hides teeth
+   - Issue: "please look straight at the camera"
+
+6. POOR QUALITY
+   - Extremely blurry or out of focus
+   - Too dark to see teeth clearly
+   - Issue: "photo quality too low - please take a clearer photo"
 
 === WHAT TO ACCEPT ===
-Accept photos where:
+Accept photos ONLY where:
 - The full face is visible (eyes, nose, mouth)
-- Teeth are showing (any type of smile is fine - doesn't need to be "natural")
-- Photo is reasonably clear
+- BOTH upper AND lower teeth are clearly showing (wide smile)
+- Person is upright (standing or sitting)
+- Face is looking straight at camera
+- Photo is clear enough to see individual teeth
 
 DO NOT reject photos for:
 - Unnatural or exaggerated smiles (these are fine for dental work)
 - Slightly imperfect lighting
-- Minor angle variations
+- Minor angle variations (±15 degrees is OK)
 
 Analyze the photo and respond ONLY with a JSON object:
 {
