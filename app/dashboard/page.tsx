@@ -159,14 +159,12 @@ export default function DashboardPage() {
     setLoadingData(true);
     console.log('[DEBUG] fetchConsultations started, MIN_DATE:', MIN_DATE, 'sortField:', sortField, 'sortOrder:', sortOrder);
     try {
-      // Fetch only teeth consultations from December 20, 2025 onwards
-      // Limited to 200 records to prevent timeout - use filters to narrow down
+      // Fetch unique teeth consultations from December 20, 2025 onwards
+      // Using unique_consultations view for deduplication by name
       console.log('[DEBUG] Calling supabase...');
       const { data, error } = await supabase
-        .from('consultations')
+        .from('unique_consultations')
         .select('id, first_name, last_name, email, phone, treatment_type, created_at, original_image_url, transformed_image_url, pdf_url')
-        .eq('treatment_type', 'teeth')
-        .gte('created_at', MIN_DATE)
         .order(sortField, { ascending: sortOrder === 'asc' })
         .limit(200);
 

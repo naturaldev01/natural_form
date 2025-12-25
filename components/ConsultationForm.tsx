@@ -735,6 +735,15 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         .from('consultation-images')
         .getPublicUrl(pdfFileName);
 
+      // PDF URL'ini veritabanına kaydet (tek sorgu ile güncelle)
+      supabase
+        .from('consultations')
+        .update({ pdf_url: pdfUrl })
+        .eq('email', contactInfo.email.trim())
+        .eq('phone', fullPhoneNumber)
+        .is('pdf_url', null)
+        .then(() => {});  // Fire and forget - performans için beklemiyoruz
+
       // WhatsApp Cloud API ile template mesajı gönder
       const response = await fetch('/api/send-whatsapp', {
         method: 'POST',
@@ -869,6 +878,15 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       const { data: { publicUrl: pdfUrl } } = supabase.storage
         .from('consultation-images')
         .getPublicUrl(pdfFileName);
+
+      // PDF URL'ini veritabanına kaydet (fire and forget)
+      supabase
+        .from('consultations')
+        .update({ pdf_url: pdfUrl })
+        .eq('email', contactInfo.email.trim())
+        .eq('phone', fullPhoneNumber)
+        .is('pdf_url', null)
+        .then(() => {});
 
       // WhatsApp Cloud API ile template mesajı gönder
       const whatsappPromise = fetch('/api/send-whatsapp', {
