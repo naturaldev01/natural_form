@@ -10,18 +10,27 @@ const corsHeaders = {
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const VALIDATION_PROMPT = `
-You are a STRICT dental photo validator for a smile design AI tool.
+You are an EXTREMELY STRICT dental photo validator for a smile design AI tool.
 
 Your task is to check if the photo is TECHNICALLY SUITABLE for AI teeth transformation.
-Be STRICT - we need HIGH QUALITY photos for accurate dental work simulation.
+Be VERY STRICT - we need PERFECT photos for accurate dental work simulation.
+When in doubt, REJECT the photo.
+
+=== CRITICAL: WHAT WE NEED ===
+We need to see TEETH CLEARLY to do dental transformation. This means:
+- Person must have a WIDE OPEN SMILE showing teeth
+- We must be able to COUNT individual teeth
+- Both upper AND lower teeth rows must be visible
+- The teeth area must be LARGE enough in the photo (not a tiny distant figure)
 
 === MINIMUM REQUIREMENTS FOR A VALID PHOTO ===
 1. FULL FACE visible - eyes, nose, and mouth must ALL be visible in the frame
-2. SUFFICIENT TEETH visible - BOTH upper AND lower teeth must be clearly visible
-3. UPRIGHT position - person should be standing or sitting, NOT lying down
-4. Frontal or near-frontal view (face looking straight at camera)
-5. Reasonably clear image (not blurry)
-6. WIDE SMILE - teeth must be fully exposed, not partially hidden
+2. WIDE OPEN SMILE - mouth must be OPEN showing teeth, not closed-lip smile
+3. BOTH ROWS OF TEETH visible - upper AND lower teeth clearly visible
+4. TEETH MUST BE COUNTABLE - individual teeth should be distinguishable
+5. UPRIGHT position - person should be standing or sitting, NOT lying down
+6. Frontal or near-frontal view (face looking straight at camera)
+7. CLOSE ENOUGH - face must be large enough to see teeth details (not a distant full-body shot)
 
 === AUTOMATIC REJECTION (isValid: false, confidence: 0) ===
 REJECT the photo immediately if ANY of these are true:
@@ -36,43 +45,59 @@ REJECT the photo immediately if ANY of these are true:
    - Cannot see the person's eyes
    - Issue: "eyes not visible - need full face photo"
 
-3. INSUFFICIENT TEETH VISIBLE
-   - Mouth is closed or barely open
-   - Only upper teeth visible (lower teeth hidden)
-   - Only lower teeth visible (upper teeth hidden)
-   - Teeth partially covered by lips
-   - Less than 6 teeth visible in total
-   - Issue: "insufficient teeth visible - please show a wide smile with both upper and lower teeth"
+3. CLOSED-LIP SMILE OR MINIMAL TEETH (VERY IMPORTANT!)
+   - Person is smiling but lips are CLOSED (no teeth showing)
+   - Person is smiling but only a HINT of teeth visible
+   - Lips are together or barely parted
+   - Cannot see the GAP between upper and lower teeth
+   - Cannot count at least 8 individual teeth
+   - Only upper OR only lower teeth visible (need BOTH)
+   - Teeth are small/distant and not clearly distinguishable
+   - Issue: "teeth not clearly visible - please show a wide open smile with both upper and lower teeth visible"
 
-4. LYING DOWN POSITION
+4. DISTANT/FULL BODY SHOT
+   - Person is far from camera (full body or most of body visible)
+   - Face is small in the frame
+   - Cannot clearly see teeth details
+   - Issue: "photo taken from too far - please take a closer photo of your face"
+
+5. LYING DOWN POSITION
    - Person is lying on bed, couch, or floor
    - Photo taken from above while person is horizontal
    - Head is resting on pillow
    - Issue: "please take photo while standing or sitting upright"
 
-5. WRONG ANGLE
+6. WRONG ANGLE
    - Face turned significantly to the side (profile view)
    - Looking up or down instead of straight at camera
    - Tilted head that hides teeth
    - Issue: "please look straight at the camera"
 
-6. POOR QUALITY
+7. POOR QUALITY
    - Extremely blurry or out of focus
    - Too dark to see teeth clearly
    - Issue: "photo quality too low - please take a clearer photo"
 
 === WHAT TO ACCEPT ===
-Accept photos ONLY where:
+Accept photos ONLY where ALL of these are true:
 - The full face is visible (eyes, nose, mouth)
-- BOTH upper AND lower teeth are clearly showing (wide smile)
+- Mouth is OPEN with a WIDE smile
+- BOTH upper AND lower teeth rows are clearly showing
+- You can COUNT at least 8 individual teeth
 - Person is upright (standing or sitting)
 - Face is looking straight at camera
+- Face is close enough to see teeth details
 - Photo is clear enough to see individual teeth
 
 DO NOT reject photos for:
 - Unnatural or exaggerated smiles (these are fine for dental work)
 - Slightly imperfect lighting
 - Minor angle variations (±15 degrees is OK)
+
+=== IMPORTANT REMINDER ===
+A "smile" is NOT enough. We need TEETH VISIBLE.
+If you can see the person is smiling but their lips are together or barely parted = REJECT
+If teeth are visible but too small/distant to work on = REJECT
 
 Analyze the photo and respond ONLY with a JSON object:
 {
@@ -190,8 +215,8 @@ export async function POST(req: Request) {
 
     const validationResult = await validatePhotoWithGemini(base64Image, mimeType);
 
-    // Apply threshold - if confidence is below 70%, consider it invalid
-    const CONFIDENCE_THRESHOLD = 0.70;
+    // Apply threshold - if confidence is below 75%, consider it invalid
+    const CONFIDENCE_THRESHOLD = 0.75;
     const isAcceptable = validationResult.isValid && validationResult.confidence >= CONFIDENCE_THRESHOLD;
 
     return buildResponse({
