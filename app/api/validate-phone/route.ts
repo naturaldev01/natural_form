@@ -48,12 +48,12 @@ interface TelnyxLookupResponse {
 export async function POST(req: Request) {
   try {
     if (!TELNYX_API_KEY) {
-      console.warn('[validate-phone] TELNYX_API_KEY not configured, skipping validation');
-      // API key yoksa validation'ı skip et - her zaman valid döndür
+      console.error('[validate-phone] TELNYX_API_KEY not configured');
+      // API key yoksa validation başarısız
       return buildResponse({ 
-        valid: true, 
+        valid: false, 
         skipped: true,
-        message: 'Phone validation skipped - API key not configured' 
+        error: 'Phone validation service not configured' 
       });
     }
 
@@ -83,13 +83,33 @@ export async function POST(req: Request) {
       }, 400);
     }
 
-    // Country code ile birleştir (+ işareti olmadan)
-    const fullNumber = countryCode 
-      ? `${countryCode.replace(/\D/g, '')}${cleanPhone}`
-      : cleanPhone;
+    // Şüpheli pattern kontrolü - sahte/test numaralarını tespit et
+    const isSuspiciousPattern = (phone: string): boolean => {
+      // Tüm rakamlar aynı mı? (5555555555, 1111111111)
+      if (/^(\d)\1+$/.test(phone)) return true;
+      // Bilinen test numaraları
+      if (phone === '1234567890' || phone === '0123456789') return true;
+      // Aynı rakam 5+ kez üst üste tekrar ediyor mu?
+      if (/(\d)\1{4,}/.test(phone)) return true;
+      return false;
+    };
 
-    // Telnyx Number Lookup API'yi çağır
-    const telnyxUrl = `https://api.telnyx.com/v2/number_lookup/${encodeURIComponent(fullNumber)}`;
+    if (isSuspiciousPattern(cleanPhone)) {
+      console.warn('[validate-phone] Suspicious pattern detected:', cleanPhone);
+      return buildResponse({ 
+        valid: false, 
+        error: 'Invalid phone number pattern',
+        errorCode: 'SUSPICIOUS_PATTERN'
+      }, 400);
+    }
+
+    // Country code ile birleştir (+ işareti ile - Telnyx E.164 formatı bekliyor)
+    const fullNumber = countryCode 
+      ? `+${countryCode.replace(/\D/g, '')}${cleanPhone}`
+      : `+${cleanPhone}`;
+
+    // Telnyx Number Lookup API'yi çağır (type=carrier ile carrier bilgisi alınır)
+    const telnyxUrl = `https://api.telnyx.com/v2/number_lookup/${encodeURIComponent(fullNumber)}?type=carrier`;
     
     const response = await fetch(telnyxUrl, {
       method: 'GET',
@@ -121,16 +141,19 @@ export async function POST(req: Request) {
         });
       }
 
-      // Diğer hatalar için validation'ı skip et (graceful degradation)
-      console.warn('[validate-phone] Telnyx API failed, allowing through');
+      // Diğer API hatalarında validation başarısız
+      console.error('[validate-phone] Telnyx API failed');
       return buildResponse({ 
-        valid: true, 
+        valid: false, 
         skipped: true,
-        message: 'Validation skipped due to API error' 
+        error: 'Phone validation service error' 
       });
     }
 
     const data: TelnyxLookupResponse = await response.json();
+    
+    // DEBUG: Telnyx yanıtını logla
+    console.log('[validate-phone] Telnyx response for', fullNumber, ':', JSON.stringify(data, null, 2));
 
     if (data.errors && data.errors.length > 0) {
       console.error('[validate-phone] Telnyx returned errors:', data.errors);
@@ -142,6 +165,19 @@ export async function POST(req: Request) {
     }
 
     const isValid = data.data?.valid_number === true;
+    const hasCarrier = !!data.data?.carrier?.name;
+
+    console.log('[validate-phone] Result:', fullNumber, '-> valid:', isValid, ', carrier:', data.data?.carrier?.name || 'none');
+
+    // Carrier bilgisi yoksa şüpheli - gerçek numaralarda operatör bilgisi olmalı
+    if (isValid && !hasCarrier) {
+      console.warn('[validate-phone] No carrier info, rejecting:', fullNumber);
+      return buildResponse({ 
+        valid: false, 
+        error: 'Phone number could not be verified',
+        errorCode: 'NO_CARRIER'
+      });
+    }
 
     return buildResponse({
       valid: isValid,
@@ -154,11 +190,11 @@ export async function POST(req: Request) {
 
   } catch (error) {
     console.error('[validate-phone] Unexpected error:', error);
-    // Hata durumunda graceful degradation - validation'ı skip et
+    // Hata durumunda validation başarısız
     return buildResponse({ 
-      valid: true, 
+      valid: false, 
       skipped: true,
-      message: 'Validation skipped due to error' 
+      error: 'Phone validation failed' 
     });
   }
 }

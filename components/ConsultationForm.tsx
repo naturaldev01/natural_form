@@ -267,7 +267,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
     firstName: '',
     lastName: '',
     email: '',
-    countryCode: '+90',
+    countryCode: '',
     phone: '',
   });
   const [submittingContact, setSubmittingContact] = useState(false);
@@ -605,6 +605,12 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
   // Telnyx ile telefon numarasını doğrula
   const validatePhoneNumber = async (): Promise<boolean> => {
+    // Ülke kodu seçilmemiş mi kontrol et
+    if (!contactInfo.countryCode) {
+      setPhoneError(t('contactModal.selectCountryFirst') || 'Please select a country code first');
+      return false;
+    }
+
     const phone = contactInfo.phone.trim().replace(/\s/g, '');
     
     if (!PHONE_REGEX.test(phone)) {
@@ -627,10 +633,13 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
       const data = await response.json();
 
-      if (!data.valid && !data.skipped) {
+      // Numara geçersizse veya doğrulama atlandıysa reddet
+      if (!data.valid || data.skipped) {
         const errorMessage = data.errorCode === 'NOT_FOUND' || data.errorCode === 'INVALID_FORMAT'
           ? (t('contactModal.invalidPhone') || 'This phone number is invalid. Please check and try again.')
-          : (data.error || t('contactModal.invalidPhone') || 'Invalid phone number');
+          : data.skipped
+            ? (t('contactModal.invalidPhone') || 'Phone validation failed. Please check your number.')
+            : (data.error || t('contactModal.invalidPhone') || 'Invalid phone number');
         setPhoneError(errorMessage);
         setPhoneValidated(false);
         return false;
@@ -641,9 +650,10 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       return true;
     } catch (error) {
       console.error('[validatePhone] Error:', error);
-      // API hatası durumunda devam etmesine izin ver (graceful degradation)
-      setPhoneValidated(true);
-      return true;
+      // API hatası durumunda numarayı reddet
+      setPhoneError(t('contactModal.invalidPhone') || 'Phone validation failed. Please try again.');
+      setPhoneValidated(false);
+      return false;
     } finally {
       setPhoneValidating(false);
     }
@@ -1109,7 +1119,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       firstName: '',
       lastName: '',
       email: '',
-      countryCode: '+90',
+      countryCode: '',
       phone: '',
     });
   };
@@ -1527,8 +1537,13 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                         value={contactInfo.countryCode}
                         onChange={(e) => handleCountryCodeChange(e.target.value)}
                         aria-label={t('contactModal.field.countryCode')}
-                        className="w-32 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all text-sm"
+                        className={`w-32 px-3 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all text-sm ${
+                          contactInfo.countryCode ? 'text-gray-900 border-gray-200' : 'text-gray-400 border-gray-200'
+                        }`}
                       >
+                        <option value="" disabled>
+                          {t('contactModal.selectCountry') || '🌍 Select'}
+                        </option>
                         {COUNTRY_CODES.map((country) => (
                           <option key={country.code} value={country.code}>
                             {country.flag} {country.code}
