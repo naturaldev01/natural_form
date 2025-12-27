@@ -29,13 +29,27 @@ BASE TRANSFORMATION GOALS:
 - Keep natural enamel texture and realistic appearance
 - Result should look like professional dental work, not artificial
 
+=== CRITICAL TOOTH STRUCTURE RULES ===
+1. TEETH MUST TOUCH - Adjacent teeth must be in contact with each other. NO gaps between teeth.
+2. NO BROKEN TEETH - All teeth must appear complete and undamaged. Fix any chipped or broken appearance.
+3. SMOOTH EDGES - Incisal edges should be smooth and even, not jagged or irregular.
+4. NATURAL ALIGNMENT - Teeth should follow a natural dental arch curve.
+5. PROPER PROPORTIONS - Central incisors slightly larger, laterals slightly smaller, canines properly shaped.
+
+=== ABSOLUTELY FORBIDDEN ===
+- DO NOT create gaps/spaces between teeth (diastema)
+- DO NOT make teeth appear broken, chipped, or damaged
+- DO NOT leave jagged or uneven edges
+- DO NOT create unnaturally wide spaces
+- DO NOT make teeth look artificial or plastic
+
 STRICT PRESERVATION RULES:
 - Do NOT change the person's face, lips, eyes, skin tone, or expression
 - Do NOT change the mouth position or smile width  
 - Do NOT modify hair, background, clothing, or lighting
 - Keep the same person - no face replacement
 
-OUTPUT: Same photo with only teeth transformed.
+OUTPUT: Same photo with only teeth transformed - teeth must be touching, complete, and natural-looking.
 `.trim(),
 
   teeth_with_specs: `
@@ -55,10 +69,29 @@ You MUST visibly apply these specifications. The output teeth MUST clearly show:
 If the requested shade is bright (0M1, 0M2, 0M3, A1, B1), the teeth MUST appear noticeably whiter than the original.
 If a Hollywood or aggressive style is requested, the teeth shape MUST show visible enhancement.
 
+=== CRITICAL TOOTH STRUCTURE RULES ===
+1. TEETH MUST TOUCH - Adjacent teeth MUST be in contact with each other. NO gaps between teeth allowed.
+2. NO BROKEN TEETH - All teeth must appear complete and undamaged. Fix any chipped or broken appearance.
+3. SMOOTH EDGES - Incisal edges should be smooth and even, not jagged or irregular.
+4. NATURAL ALIGNMENT - Teeth should follow a natural dental arch curve.
+5. PROPER PROPORTIONS - Central incisors slightly larger, laterals slightly smaller, canines properly shaped.
+6. APPLY THE STYLE - The requested style (Hollywood, Aggressive, etc.) MUST be visible in the tooth shape.
+7. APPLY THE SHADE - The requested color MUST be clearly applied to all visible teeth.
+
+=== ABSOLUTELY FORBIDDEN ===
+- DO NOT create gaps/spaces between teeth (diastema) - teeth must touch
+- DO NOT make teeth appear broken, chipped, or damaged
+- DO NOT leave jagged or uneven edges
+- DO NOT create unnaturally wide spaces between teeth
+- DO NOT make teeth look artificial or plastic
+- DO NOT just whiten without applying the requested style
+- DO NOT ignore the shade - color change must be visible
+
 === TRANSFORMATION GOALS ===
 - Make teeth straight, well-aligned, and naturally shaped
-- Apply the EXACT shade color specified above
-- Apply the EXACT style/shape specified above
+- Apply the EXACT shade color specified above (MANDATORY)
+- Apply the EXACT style/shape specified above (MANDATORY)
+- Ensure all teeth are touching - no gaps
 - Keep natural enamel texture while achieving the requested look
 
 === STRICT PRESERVATION RULES ===
@@ -70,9 +103,11 @@ If a Hollywood or aggressive style is requested, the teeth shape MUST show visib
 Before outputting, verify:
 - Does the tooth color match the requested shade? (MANDATORY)
 - Does the tooth shape match the requested style? (MANDATORY)
+- Are all adjacent teeth touching with no gaps? (MANDATORY)
+- Are all teeth complete with no broken/chipped appearance? (MANDATORY)
 - Is the result realistic and natural-looking? (REQUIRED)
 
-OUTPUT: Same photo with teeth transformed to EXACTLY match the requested shade and style.
+OUTPUT: Same photo with teeth transformed to EXACTLY match the requested shade and style - teeth must be touching, complete, and properly styled.
 `.trim(),
 
 hair_base: `
@@ -738,16 +773,33 @@ You MUST transform the teeth in this image. This is a MANDATORY requirement.
 
 ${shadeDesc ? `REQUIRED SHADE: ${shadeDesc.toUpperCase()} (Code: ${teethShade})
 - The teeth MUST be visibly changed to this shade
-- This shade should be CLEARLY DIFFERENT from the original` : ''}
+- This shade should be CLEARLY DIFFERENT from the original
+- Apply this color to ALL visible teeth uniformly` : ''}
 
 ${styleDesc ? `REQUIRED STYLE: ${styleDesc.toUpperCase()} (Code: ${teethStyle})
 - The tooth shape MUST reflect this style
-- The contours should be visibly enhanced` : ''}
+- The contours should be visibly enhanced
+- This is NOT optional - the style must be clearly visible` : ''}
+
+=== CRITICAL TOOTH STRUCTURE RULES ===
+1. TEETH MUST TOUCH - Adjacent teeth MUST be in contact. NO gaps between teeth.
+2. NO BROKEN TEETH - All teeth must appear complete and undamaged.
+3. SMOOTH EDGES - Incisal edges must be smooth and even.
+4. APPLY BOTH SHADE AND STYLE - Do NOT just whiten, you must apply the requested style shape too.
+
+=== ABSOLUTELY FORBIDDEN ===
+- NO gaps between teeth (diastema)
+- NO broken or chipped teeth
+- NO jagged edges
+- NO ignoring the style (you must reshape, not just whiten)
+- NO plastic/artificial appearance
 
 IMPORTANT:
 - The previous attempt did NOT make visible changes - you MUST do better
 - Apply MORE noticeable whitening/reshaping than a conservative approach
 - The change must be obvious when comparing before/after
+- BOTH shade AND style must be applied - not just one
+- Teeth must be touching each other with no gaps
 - Still maintain realistic, natural-looking results (no glowing/plastic teeth)
 
 STRICT RULES:
@@ -755,7 +807,7 @@ STRICT RULES:
 - Do NOT change hair, background, clothing, lighting
 - ONLY transform the teeth
 
-OUTPUT: Same photo with teeth CLEARLY transformed to match the specifications above.
+OUTPUT: Same photo with teeth CLEARLY transformed - proper shade, proper style, teeth touching, no gaps, no broken teeth.
 `.trim();
 
         const boostedModels = ['gemini-3-pro-image-preview', 'gemini-2.5-flash-image'];

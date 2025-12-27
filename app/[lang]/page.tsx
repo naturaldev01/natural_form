@@ -3,13 +3,13 @@ import { SUPPORTED_LANGUAGES } from '@/lib/i18n/translations';
 import { notFound } from 'next/navigation';
 
 interface LocalePageProps {
-  params: {
+  params: Promise<{
     lang: string;
-  };
+  }>;
 }
 
-export default function LocalePage({ params }: LocalePageProps) {
-  const locale = params.lang;
+export default async function LocalePage({ params }: LocalePageProps) {
+  const { lang: locale } = await params;
   const supported = SUPPORTED_LANGUAGES.some((lang) => lang.code === locale);
   if (!supported) {
     notFound();

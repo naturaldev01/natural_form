@@ -18,19 +18,20 @@ When in doubt, REJECT the photo.
 
 === CRITICAL: WHAT WE NEED ===
 We need to see TEETH CLEARLY to do dental transformation. This means:
-- Person must have a WIDE OPEN SMILE showing teeth
-- We must be able to COUNT individual teeth
-- Both upper AND lower teeth rows must be visible
+- Person must have a NATURAL SMILE showing teeth (not mouth wide open)
+- Upper and lower teeth should be CLOSE TOGETHER or TOUCHING (natural bite position)
+- We must be able to see INDIVIDUAL teeth clearly
 - The teeth area must be LARGE enough in the photo (not a tiny distant figure)
 
 === MINIMUM REQUIREMENTS FOR A VALID PHOTO ===
 1. FULL FACE visible - eyes, nose, and mouth must ALL be visible in the frame
-2. WIDE OPEN SMILE - mouth must be OPEN showing teeth, not closed-lip smile
-3. BOTH ROWS OF TEETH visible - upper AND lower teeth clearly visible
-4. TEETH MUST BE COUNTABLE - individual teeth should be distinguishable
-5. UPRIGHT position - person should be standing or sitting, NOT lying down
-6. Frontal or near-frontal view (face looking straight at camera)
-7. CLOSE ENOUGH - face must be large enough to see teeth details (not a distant full-body shot)
+2. NATURAL SMILE - teeth showing in a natural, relaxed smile position
+3. TEETH IN NATURAL BITE - upper and lower teeth should be close together or touching (like a normal smile, not mouth wide open)
+4. TEETH MUST BE VISIBLE - individual teeth should be distinguishable (at least 6-8 upper front teeth)
+5. NO VISIBLE GAPS BETWEEN TEETH - teeth should appear naturally aligned without large diastema (gaps between teeth)
+6. UPRIGHT position - person should be standing or sitting, NOT lying down
+7. Frontal or near-frontal view (face looking straight at camera)
+8. CLOSE ENOUGH - face must be large enough to see teeth details (not a distant full-body shot)
 
 === AUTOMATIC REJECTION (isValid: false, confidence: 0) ===
 REJECT the photo immediately if ANY of these are true:
@@ -49,31 +50,44 @@ REJECT the photo immediately if ANY of these are true:
    - Person is smiling but lips are CLOSED (no teeth showing)
    - Person is smiling but only a HINT of teeth visible
    - Lips are together or barely parted
-   - Cannot see the GAP between upper and lower teeth
-   - Cannot count at least 8 individual teeth
-   - Only upper OR only lower teeth visible (need BOTH)
+   - Cannot count at least 6 individual front teeth
+   - Only bottom teeth visible without upper teeth
    - Teeth are small/distant and not clearly distinguishable
-   - Issue: "teeth not clearly visible - please show a wide open smile with both upper and lower teeth visible"
+   - Issue: "teeth not clearly visible - please show a natural smile with teeth visible"
 
-4. DISTANT/FULL BODY SHOT
+4. MOUTH TOO WIDE OPEN (VERY IMPORTANT!)
+   - Mouth is EXCESSIVELY open (like saying "ahhh" at dentist)
+   - Upper and lower teeth are NOT touching or close together
+   - There is a large gap between upper and lower teeth rows
+   - Can see deep into the mouth/throat
+   - This is NOT a natural smile position
+   - Issue: "mouth too wide open - please show a natural smile where upper and lower teeth are close together"
+
+5. VISIBLE GAPS BETWEEN TEETH (DIASTEMA)
+   - There are visible gaps/spaces between front teeth
+   - Teeth are not aligned properly with visible spacing
+   - Large gap between two front teeth (central incisors)
+   - Issue: "visible gaps between teeth detected - please provide a photo with naturally aligned teeth"
+
+6. DISTANT/FULL BODY SHOT
    - Person is far from camera (full body or most of body visible)
    - Face is small in the frame
    - Cannot clearly see teeth details
    - Issue: "photo taken from too far - please take a closer photo of your face"
 
-5. LYING DOWN POSITION
+7. LYING DOWN POSITION
    - Person is lying on bed, couch, or floor
    - Photo taken from above while person is horizontal
    - Head is resting on pillow
    - Issue: "please take photo while standing or sitting upright"
 
-6. WRONG ANGLE
+8. WRONG ANGLE
    - Face turned significantly to the side (profile view)
    - Looking up or down instead of straight at camera
    - Tilted head that hides teeth
    - Issue: "please look straight at the camera"
 
-7. POOR QUALITY
+9. POOR QUALITY
    - Extremely blurry or out of focus
    - Too dark to see teeth clearly
    - Issue: "photo quality too low - please take a clearer photo"
@@ -81,23 +95,27 @@ REJECT the photo immediately if ANY of these are true:
 === WHAT TO ACCEPT ===
 Accept photos ONLY where ALL of these are true:
 - The full face is visible (eyes, nose, mouth)
-- Mouth is OPEN with a WIDE smile
-- BOTH upper AND lower teeth rows are clearly showing
-- You can COUNT at least 8 individual teeth
+- Person has a NATURAL smile (not mouth wide open)
+- Upper and lower teeth are close together or touching (natural bite)
+- You can see at least 6 individual front teeth clearly
+- Teeth appear naturally aligned WITHOUT large gaps between them
 - Person is upright (standing or sitting)
 - Face is looking straight at camera
 - Face is close enough to see teeth details
 - Photo is clear enough to see individual teeth
 
 DO NOT reject photos for:
-- Unnatural or exaggerated smiles (these are fine for dental work)
 - Slightly imperfect lighting
 - Minor angle variations (±15 degrees is OK)
+- Teeth that are slightly crooked (this is what we're fixing!)
+- Teeth that are slightly discolored (this is what we're fixing!)
 
 === IMPORTANT REMINDER ===
-A "smile" is NOT enough. We need TEETH VISIBLE.
-If you can see the person is smiling but their lips are together or barely parted = REJECT
-If teeth are visible but too small/distant to work on = REJECT
+A "smile" is NOT enough. We need TEETH VISIBLE in NATURAL POSITION.
+- If lips are together or barely parted = REJECT
+- If mouth is too wide open (teeth not in bite position) = REJECT
+- If there are visible gaps between front teeth = REJECT
+- If teeth are visible but too small/distant to work on = REJECT
 
 Analyze the photo and respond ONLY with a JSON object:
 {

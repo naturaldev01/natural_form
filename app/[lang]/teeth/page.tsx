@@ -3,13 +3,14 @@ import { SUPPORTED_LANGUAGES } from '@/lib/i18n/translations';
 import { notFound } from 'next/navigation';
 
 interface LocaleTeethPageProps {
-  params: {
+  params: Promise<{
     lang: string;
-  };
+  }>;
 }
 
-export default function LocaleTeethPage({ params }: LocaleTeethPageProps) {
-  const isSupported = SUPPORTED_LANGUAGES.some((lang) => lang.code === params.lang);
+export default async function LocaleTeethPage({ params }: LocaleTeethPageProps) {
+  const { lang } = await params;
+  const isSupported = SUPPORTED_LANGUAGES.some((l) => l.code === lang);
   if (!isSupported) {
     notFound();
   }
