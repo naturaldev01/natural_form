@@ -720,9 +720,44 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
     setSubmittingContact(true);
 
     try {
-      // Veritabanına kaydet
       const supabase = createClient();
       const fullPhoneNumber = `${contactInfo.countryCode}${contactInfo.phone.trim().replace(/\s/g, '')}`;
+      const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
+      
+      // 1. PDF oluştur
+      const pdfBlob = await generatePdf(
+        transformationResults,
+        contactName,
+        formData.treatmentType,
+        t
+      );
+      const pdfBase64 = await blobToBase64(pdfBlob);
+
+      // 2. PDF'i Storage'a yükle (performanslı: tek upload)
+      const sanitizedName = contactName
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[ğĞ]/g, 'g').replace(/[üÜ]/g, 'u').replace(/[şŞ]/g, 's')
+        .replace(/[ıİ]/g, 'i').replace(/[öÖ]/g, 'o').replace(/[çÇ]/g, 'c')
+        .replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-').toLowerCase();
+      
+      const pdfFileName = `pdfs/${Date.now()}-${sanitizedName || 'user'}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from('consultation-images')
+        .upload(pdfFileName, pdfBlob, {
+          contentType: 'application/pdf',
+          upsert: true,
+        });
+
+      let pdfUrl: string | undefined;
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabase.storage
+          .from('consultation-images')
+          .getPublicUrl(pdfFileName);
+        pdfUrl = publicUrl;
+      }
+
+      // 3. Veritabanına kaydet (tek insert, pdf_url dahil)
       for (const result of transformationResults) {
         const { error: dbError } = await (supabase.from('consultations') as any).insert({
           first_name: contactInfo.firstName.trim(),
@@ -732,27 +767,17 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
           treatment_type: formData.teethShade ? 'teeth' : 'hair',
           original_image_url: result.originalUrl,
           transformed_image_url: result.transformedUrl,
+          pdf_url: pdfUrl,
         });
 
         if (dbError) throw dbError;
       }
 
-      // PDF oluştur ve mail gönder
-      const pdfBlob = await generatePdf(
-        transformationResults,
-        `${contactInfo.firstName} ${contactInfo.lastName}`,
-        formData.treatmentType,
-        t
-      );
-      const pdfBase64 = await blobToBase64(pdfBlob);
+      // 4. Email gönder
       const filename = `natural-clinic-${Date.now()}.pdf`;
-      const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
-      
       const response = await fetch('/api/send-pdf', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           pdfBase64,
           filename,
@@ -770,15 +795,11 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         );
       }
 
-      // onSuccess'i çağır
       onSuccess?.({
         results: transformationResults,
         preferences:
           formData.treatmentType === 'teeth'
-            ? {
-                teethShade: formData.teethShade,
-                teethStyle: formData.teethStyle,
-              }
+            ? { teethShade: formData.teethShade, teethStyle: formData.teethStyle }
             : undefined,
       });
 
@@ -818,47 +839,17 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       const fullPhoneNumber = `${countryCodeClean}${contactInfo.phone.trim().replace(/\s/g, '')}`;
       const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
       
-      // Veritabanına kaydet
-      for (const result of transformationResults) {
-        const { error: dbError } = await (supabase.from('consultations') as any).insert({
-          first_name: contactInfo.firstName.trim(),
-          last_name: contactInfo.lastName.trim(),
-          email: contactInfo.email.trim(),
-          phone: fullPhoneNumber,
-          treatment_type: formData.teethShade ? 'teeth' : 'hair',
-          original_image_url: result.originalUrl,
-          transformed_image_url: result.transformedUrl,
-        });
-
-        if (dbError) {
-          throw dbError;
-        }
-      }
-
-      // PDF oluştur
+      // 1. PDF oluştur
       const pdfBlob = await generatePdf(transformationResults, contactName, formData.treatmentType, t);
 
-      // Türkçe karakterleri ASCII'ye çevir ve özel karakterleri temizle
+      // 2. PDF'i Storage'a yükle
       const sanitizedName = contactName
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
-        .replace(/ğ/g, 'g')
-        .replace(/Ğ/g, 'G')
-        .replace(/ü/g, 'u')
-        .replace(/Ü/g, 'U')
-        .replace(/ş/g, 's')
-        .replace(/Ş/g, 'S')
-        .replace(/ı/g, 'i')
-        .replace(/İ/g, 'I')
-        .replace(/ö/g, 'o')
-        .replace(/Ö/g, 'O')
-        .replace(/ç/g, 'c')
-        .replace(/Ç/g, 'C')
-        .replace(/[^a-zA-Z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .toLowerCase();
+        .replace(/[ğĞ]/g, 'g').replace(/[üÜ]/g, 'u').replace(/[şŞ]/g, 's')
+        .replace(/[ıİ]/g, 'i').replace(/[öÖ]/g, 'o').replace(/[çÇ]/g, 'c')
+        .replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-').toLowerCase();
       
-      // PDF'i Supabase'e yükle
       const pdfFileName = `whatsapp-pdfs/${Date.now()}-${sanitizedName || 'user'}.pdf`;
       const { error: uploadError } = await supabase.storage
         .from('consultation-images')
@@ -876,15 +867,25 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         .from('consultation-images')
         .getPublicUrl(pdfFileName);
 
-      // PDF URL'ini veritabanına kaydet (tek sorgu ile güncelle)
-      (supabase.from('consultations') as any)
-        .update({ pdf_url: pdfUrl })
-        .eq('email', contactInfo.email.trim())
-        .eq('phone', fullPhoneNumber)
-        .is('pdf_url', null)
-        .then(() => {});  // Fire and forget - performans için beklemiyoruz
+      // 3. Veritabanına kaydet (tek insert, pdf_url dahil)
+      for (const result of transformationResults) {
+        const { error: dbError } = await (supabase.from('consultations') as any).insert({
+          first_name: contactInfo.firstName.trim(),
+          last_name: contactInfo.lastName.trim(),
+          email: contactInfo.email.trim(),
+          phone: fullPhoneNumber,
+          treatment_type: formData.teethShade ? 'teeth' : 'hair',
+          original_image_url: result.originalUrl,
+          transformed_image_url: result.transformedUrl,
+          pdf_url: pdfUrl,
+        });
 
-      // WhatsApp Cloud API ile template mesajı gönder
+        if (dbError) {
+          throw dbError;
+        }
+      }
+
+      // 4. WhatsApp Cloud API ile template mesajı gönder
       const response = await fetch('/api/send-whatsapp', {
         method: 'POST',
         headers: {
@@ -957,64 +958,18 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       const fullPhoneNumber = `${countryCodeClean}${contactInfo.phone.trim().replace(/\s/g, '')}`;
       const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
       
-      // Veritabanına kaydet
-      for (const result of transformationResults) {
-        const { error: dbError } = await (supabase.from('consultations') as any).insert({
-          first_name: contactInfo.firstName.trim(),
-          last_name: contactInfo.lastName.trim(),
-          email: contactInfo.email.trim(),
-          phone: fullPhoneNumber,
-          treatment_type: formData.teethShade ? 'teeth' : 'hair',
-          original_image_url: result.originalUrl,
-          transformed_image_url: result.transformedUrl,
-        });
-
-        if (dbError) {
-          throw dbError;
-        }
-      }
-
-      // PDF oluştur
+      // 1. PDF oluştur
       const pdfBlob = await generatePdf(transformationResults, contactName, formData.treatmentType, t);
       const pdfBase64 = await blobToBase64(pdfBlob);
 
-      // Türkçe karakterleri ASCII'ye çevir ve özel karakterleri temizle
+      // 2. PDF'i Storage'a yükle
       const sanitizedName = contactName
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
-        .replace(/ğ/g, 'g')
-        .replace(/Ğ/g, 'G')
-        .replace(/ü/g, 'u')
-        .replace(/Ü/g, 'U')
-        .replace(/ş/g, 's')
-        .replace(/Ş/g, 'S')
-        .replace(/ı/g, 'i')
-        .replace(/İ/g, 'I')
-        .replace(/ö/g, 'o')
-        .replace(/Ö/g, 'O')
-        .replace(/ç/g, 'c')
-        .replace(/Ç/g, 'C')
-        .replace(/[^a-zA-Z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .toLowerCase();
+        .replace(/[ğĞ]/g, 'g').replace(/[üÜ]/g, 'u').replace(/[şŞ]/g, 's')
+        .replace(/[ıİ]/g, 'i').replace(/[öÖ]/g, 'o').replace(/[çÇ]/g, 'c')
+        .replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-').toLowerCase();
       
-      const filename = `natural-clinic-${Date.now()}.pdf`;
-
-      // Email gönder
-      const emailPromise = fetch('/api/send-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          pdfBase64,
-          filename,
-          toEmail: contactInfo.email,
-          contactName,
-        }),
-      });
-
-      // PDF'i Supabase'e yükle (WhatsApp için)
       const pdfFileName = `whatsapp-pdfs/${Date.now()}-${sanitizedName || 'user'}.pdf`;
       const { error: uploadError } = await supabase.storage
         .from('consultation-images')
@@ -1032,15 +987,39 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         .from('consultation-images')
         .getPublicUrl(pdfFileName);
 
-      // PDF URL'ini veritabanına kaydet (fire and forget)
-      (supabase.from('consultations') as any)
-        .update({ pdf_url: pdfUrl })
-        .eq('email', contactInfo.email.trim())
-        .eq('phone', fullPhoneNumber)
-        .is('pdf_url', null)
-        .then(() => {});
+      // 3. Veritabanına kaydet (tek insert, pdf_url dahil)
+      for (const result of transformationResults) {
+        const { error: dbError } = await (supabase.from('consultations') as any).insert({
+          first_name: contactInfo.firstName.trim(),
+          last_name: contactInfo.lastName.trim(),
+          email: contactInfo.email.trim(),
+          phone: fullPhoneNumber,
+          treatment_type: formData.teethShade ? 'teeth' : 'hair',
+          original_image_url: result.originalUrl,
+          transformed_image_url: result.transformedUrl,
+          pdf_url: pdfUrl,
+        });
 
-      // WhatsApp Cloud API ile template mesajı gönder
+        if (dbError) {
+          throw dbError;
+        }
+      }
+
+      const filename = `natural-clinic-${Date.now()}.pdf`;
+
+      // 4. Email gönder (paralel)
+      const emailPromise = fetch('/api/send-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pdfBase64,
+          filename,
+          toEmail: contactInfo.email,
+          contactName,
+        }),
+      });
+
+      // 5. WhatsApp Cloud API ile template mesajı gönder (paralel)
       const whatsappPromise = fetch('/api/send-whatsapp', {
         method: 'POST',
         headers: {

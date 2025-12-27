@@ -157,17 +157,17 @@ export default function DashboardPage() {
     try {
       const supabase = createClient();
       
-      // Optimized query: sadece gerekli kolonlar, limit düşürüldü
+      // Tüm datayı çek (limit yok - filtreleme client-side yapılacak)
       const { data, error } = await (supabase
         .from('unique_consultations') as any)
         .select('id, first_name, last_name, email, phone, treatment_type, created_at, pdf_url')
-        .order(sortField, { ascending: sortOrder === 'asc' })
-        .limit(50);  // 200'den 50'ye düşürüldü - pagination ile artırılabilir
+        .order(sortField, { ascending: sortOrder === 'asc' });
 
       if (error) {
         console.error('[Dashboard] Fetch error:', error.message);
         throw error;
       }
+      
       setConsultations(data || []);
     } catch (err) {
       console.error('[Dashboard] Failed to fetch consultations:', err);
@@ -248,10 +248,21 @@ export default function DashboardPage() {
     return false;
   };
 
-  const filteredConsultations = consultations.filter(consultation => {
-    // Hide test data
-    if (isTestData(consultation.email, consultation.first_name, consultation.last_name)) return false;
-    
+  // Test data'yı filtrele (bu tüm istatistikler için kullanılacak)
+  const realConsultations = consultations.filter(consultation => 
+    !isTestData(consultation.email, consultation.first_name, consultation.last_name)
+  );
+
+  // İstatistikler için hesaplamalar
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6);
+  
+  const calculatedTotalCount = realConsultations.length;
+  const calculatedTodayCount = realConsultations.filter(c => new Date(c.created_at) >= todayStart).length;
+  const calculatedWeekCount = realConsultations.filter(c => new Date(c.created_at) >= weekStart).length;
+
+  const filteredConsultations = realConsultations.filter(consultation => {
     // Date filter
     const consultationDate = new Date(consultation.created_at);
     if (dateFrom) {
@@ -384,8 +395,8 @@ export default function DashboardPage() {
                 <Users className="w-6 h-6 text-[#006069]" />
               </div>
               <div>
-                <p className="text-3xl font-bold text-gray-900">{filteredConsultations.length}</p>
-                <p className="text-sm text-gray-500">Total Teeth Consultations</p>
+                <p className="text-3xl font-bold text-gray-900">{calculatedTotalCount}</p>
+                <p className="text-sm text-gray-500">Total Consultations</p>
               </div>
             </div>
           </div>
@@ -396,13 +407,7 @@ export default function DashboardPage() {
                 <TrendingUp className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <p className="text-3xl font-bold text-gray-900">
-                  {filteredConsultations.filter(c => {
-                    const date = new Date(c.created_at);
-                    const today = new Date();
-                    return date.toDateString() === today.toDateString();
-                  }).length}
-                </p>
+                <p className="text-3xl font-bold text-gray-900">{calculatedTodayCount}</p>
                 <p className="text-sm text-gray-500">Today's Leads</p>
               </div>
             </div>
@@ -414,15 +419,8 @@ export default function DashboardPage() {
                 <Clock className="w-6 h-6 text-amber-600" />
               </div>
               <div>
-                <p className="text-3xl font-bold text-gray-900">
-                  {filteredConsultations.filter(c => {
-                    const date = new Date(c.created_at);
-                    const now = new Date();
-                    const diffHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-                    return diffHours <= 24;
-                  }).length}
-                </p>
-                <p className="text-sm text-gray-500">Last 24 Hours</p>
+                <p className="text-3xl font-bold text-gray-900">{calculatedWeekCount}</p>
+                <p className="text-sm text-gray-500">Last 7 Days</p>
               </div>
             </div>
           </div>
