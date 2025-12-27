@@ -10,34 +10,30 @@ const corsHeaders = {
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const VALIDATION_PROMPT = `
-You are an EXTREMELY STRICT dental photo validator for a smile design AI tool.
+You are a dental photo validator for a smile design AI tool.
 
 Your task is to check if the photo is TECHNICALLY SUITABLE for AI teeth transformation.
-Be VERY STRICT - we need PERFECT photos for accurate dental work simulation.
-When in doubt, REJECT the photo.
+We need to see teeth clearly, but be REASONABLE - don't reject good photos for minor issues.
 
-=== CRITICAL: WHAT WE NEED ===
+=== WHAT WE NEED ===
 We need to see TEETH CLEARLY to do dental transformation. This means:
-- Person must have a NATURAL SMILE showing teeth (not mouth wide open)
-- Upper and lower teeth should be CLOSE TOGETHER or TOUCHING (natural bite position)
-- We must be able to see INDIVIDUAL teeth clearly
-- The teeth area must be LARGE enough in the photo (not a tiny distant figure)
+- Person showing teeth in a smile (can be wide/exaggerated smile - that's fine!)
+- We must be able to see the FRONT TEETH clearly
+- Upper teeth must be visible (lower teeth visibility is a bonus, not required)
+- The face/teeth area must be LARGE enough in the photo
 
 === MINIMUM REQUIREMENTS FOR A VALID PHOTO ===
 1. FULL FACE visible - eyes, nose, and mouth must ALL be visible in the frame
-2. NATURAL SMILE - teeth showing in a natural, relaxed smile position
-3. TEETH IN NATURAL BITE - upper and lower teeth should be close together or touching (like a normal smile, not mouth wide open)
-4. TEETH MUST BE VISIBLE - individual teeth should be distinguishable (at least 6-8 upper front teeth)
-5. NO VISIBLE GAPS BETWEEN TEETH - teeth should appear naturally aligned without large diastema (gaps between teeth)
-6. UPRIGHT position - person should be standing or sitting, NOT lying down
-7. Frontal or near-frontal view (face looking straight at camera)
-8. CLOSE ENOUGH - face must be large enough to see teeth details (not a distant full-body shot)
+2. TEETH SHOWING - front teeth must be clearly visible (at least 6 upper front teeth)
+3. UPRIGHT position - person should be standing or sitting, NOT lying down
+4. Frontal or near-frontal view (face looking toward camera)
+5. CLOSE ENOUGH - face must be large enough to see teeth details
 
-=== AUTOMATIC REJECTION (isValid: false, confidence: 0) ===
-REJECT the photo immediately if ANY of these are true:
+=== AUTOMATIC REJECTION (isValid: false) ===
+REJECT the photo ONLY if ANY of these SERIOUS issues are true:
 
 1. CLOSE-UP OF MOUTH ONLY
-   - Photo shows ONLY mouth/teeth/lips area
+   - Photo shows ONLY mouth/teeth/lips area without full face
    - The person's EYES are NOT visible in the photo
    - Issue: "close-up of mouth only - need full face photo"
 
@@ -46,76 +42,52 @@ REJECT the photo immediately if ANY of these are true:
    - Cannot see the person's eyes
    - Issue: "eyes not visible - need full face photo"
 
-3. CLOSED-LIP SMILE OR MINIMAL TEETH (VERY IMPORTANT!)
+3. CLOSED-LIP SMILE OR NO TEETH
    - Person is smiling but lips are CLOSED (no teeth showing)
-   - Person is smiling but only a HINT of teeth visible
-   - Lips are together or barely parted
-   - Cannot count at least 6 individual front teeth
-   - Only bottom teeth visible without upper teeth
-   - Teeth are small/distant and not clearly distinguishable
-   - Issue: "teeth not clearly visible - please show a natural smile with teeth visible"
+   - Person is smiling but only a tiny hint of teeth visible
+   - Cannot see any individual front teeth
+   - Issue: "teeth not visible - please show a smile with teeth"
 
-4. MOUTH TOO WIDE OPEN (VERY IMPORTANT!)
-   - Mouth is EXCESSIVELY open (like saying "ahhh" at dentist)
-   - Upper and lower teeth are NOT touching or close together
-   - There is a large gap between upper and lower teeth rows
-   - Can see deep into the mouth/throat
-   - This is NOT a natural smile position
-   - Issue: "mouth too wide open - please show a natural smile where upper and lower teeth are close together"
-
-5. VISIBLE GAPS BETWEEN TEETH (DIASTEMA)
-   - There are visible gaps/spaces between front teeth
-   - Teeth are not aligned properly with visible spacing
-   - Large gap between two front teeth (central incisors)
-   - Issue: "visible gaps between teeth detected - please provide a photo with naturally aligned teeth"
-
-6. DISTANT/FULL BODY SHOT
+4. DISTANT/FULL BODY SHOT
    - Person is far from camera (full body or most of body visible)
    - Face is small in the frame
    - Cannot clearly see teeth details
-   - Issue: "photo taken from too far - please take a closer photo of your face"
+   - Issue: "photo taken from too far - please take a closer photo"
 
-7. LYING DOWN POSITION
-   - Person is lying on bed, couch, or floor
+5. LYING DOWN POSITION
+   - Person is clearly lying on bed, couch, or floor
    - Photo taken from above while person is horizontal
-   - Head is resting on pillow
    - Issue: "please take photo while standing or sitting upright"
 
-8. WRONG ANGLE
-   - Face turned significantly to the side (profile view)
-   - Looking up or down instead of straight at camera
-   - Tilted head that hides teeth
+6. WRONG ANGLE (SEVERE)
+   - Face turned significantly to the side (profile view, >45 degrees)
+   - Cannot see both eyes
    - Issue: "please look straight at the camera"
 
-9. POOR QUALITY
-   - Extremely blurry or out of focus
-   - Too dark to see teeth clearly
+7. VERY POOR QUALITY
+   - Extremely blurry or out of focus (cannot distinguish individual teeth)
+   - Too dark to see teeth at all
    - Issue: "photo quality too low - please take a clearer photo"
 
-=== WHAT TO ACCEPT ===
-Accept photos ONLY where ALL of these are true:
-- The full face is visible (eyes, nose, mouth)
-- Person has a NATURAL smile (not mouth wide open)
-- Upper and lower teeth are close together or touching (natural bite)
-- You can see at least 6 individual front teeth clearly
-- Teeth appear naturally aligned WITHOUT large gaps between them
-- Person is upright (standing or sitting)
-- Face is looking straight at camera
-- Face is close enough to see teeth details
+=== WHAT TO ACCEPT (IMPORTANT!) ===
+ACCEPT photos where:
+- Full face is visible (eyes, nose, mouth)
+- Front teeth are clearly visible (even if mouth is wide open!)
+- Person is upright and facing camera
 - Photo is clear enough to see individual teeth
 
-DO NOT reject photos for:
+=== DO NOT REJECT FOR THESE (VERY IMPORTANT!) ===
+- Wide open mouth / exaggerated smile - THIS IS FINE! We just need to see teeth.
+- Upper and lower teeth not touching - THIS IS FINE! As long as we see teeth clearly.
+- Teeth with natural small gaps - THIS IS FINE! Small gaps between teeth are normal.
+- Crooked, discolored, or imperfect teeth - THIS IS FINE! This is what we're fixing!
 - Slightly imperfect lighting
-- Minor angle variations (±15 degrees is OK)
-- Teeth that are slightly crooked (this is what we're fixing!)
-- Teeth that are slightly discolored (this is what we're fixing!)
+- Minor angle variations (up to ±30 degrees is OK)
+- Intense/exaggerated facial expressions - THIS IS FINE if teeth are visible!
 
-=== IMPORTANT REMINDER ===
-A "smile" is NOT enough. We need TEETH VISIBLE in NATURAL POSITION.
-- If lips are together or barely parted = REJECT
-- If mouth is too wide open (teeth not in bite position) = REJECT
-- If there are visible gaps between front teeth = REJECT
-- If teeth are visible but too small/distant to work on = REJECT
+=== KEY POINT ===
+If you can clearly see the person's face AND their front teeth, the photo is probably VALID.
+Don't be overly strict. We want to help people, not reject them for minor issues.
 
 Analyze the photo and respond ONLY with a JSON object:
 {
@@ -233,8 +205,8 @@ export async function POST(req: Request) {
 
     const validationResult = await validatePhotoWithGemini(base64Image, mimeType);
 
-    // Apply threshold - if confidence is below 75%, consider it invalid
-    const CONFIDENCE_THRESHOLD = 0.75;
+    // Apply threshold - if confidence is below 65%, consider it invalid
+    const CONFIDENCE_THRESHOLD = 0.65;
     const isAcceptable = validationResult.isValid && validationResult.confidence >= CONFIDENCE_THRESHOLD;
 
     return buildResponse({

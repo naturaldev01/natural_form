@@ -272,6 +272,12 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
   });
   const [submittingContact, setSubmittingContact] = useState(false);
   const [submittingWhatsApp, setSubmittingWhatsApp] = useState(false);
+  const [phoneValidating, setPhoneValidating] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [phoneValidated, setPhoneValidated] = useState(false);
+  const [emailValidating, setEmailValidating] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailValidated, setEmailValidated] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showResultPage, setShowResultPage] = useState(false);
@@ -576,6 +582,114 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const PHONE_REGEX = /^[0-9\s]{6,15}$/;
 
+  // Telefon numarası değiştiğinde validated state'i sıfırla
+  const handlePhoneChange = (newPhone: string) => {
+    setContactInfo({ ...contactInfo, phone: newPhone });
+    setPhoneValidated(false);
+    setPhoneError(null);
+  };
+
+  // Country code değiştiğinde validated state'i sıfırla
+  const handleCountryCodeChange = (newCode: string) => {
+    setContactInfo({ ...contactInfo, countryCode: newCode });
+    setPhoneValidated(false);
+    setPhoneError(null);
+  };
+
+  // Email değiştiğinde validated state'i sıfırla
+  const handleEmailChange = (newEmail: string) => {
+    setContactInfo({ ...contactInfo, email: newEmail });
+    setEmailValidated(false);
+    setEmailError(null);
+  };
+
+  // Telnyx ile telefon numarasını doğrula
+  const validatePhoneNumber = async (): Promise<boolean> => {
+    const phone = contactInfo.phone.trim().replace(/\s/g, '');
+    
+    if (!PHONE_REGEX.test(phone)) {
+      setPhoneError(t('contactModal.invalidPhone') || 'Invalid phone number format');
+      return false;
+    }
+
+    setPhoneValidating(true);
+    setPhoneError(null);
+
+    try {
+      const response = await fetch('/api/validate-phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: phone,
+          countryCode: contactInfo.countryCode,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.valid && !data.skipped) {
+        const errorMessage = data.errorCode === 'NOT_FOUND' || data.errorCode === 'INVALID_FORMAT'
+          ? (t('contactModal.invalidPhone') || 'This phone number is invalid. Please check and try again.')
+          : (data.error || t('contactModal.invalidPhone') || 'Invalid phone number');
+        setPhoneError(errorMessage);
+        setPhoneValidated(false);
+        return false;
+      }
+
+      setPhoneValidated(true);
+      setPhoneError(null);
+      return true;
+    } catch (error) {
+      console.error('[validatePhone] Error:', error);
+      // API hatası durumunda devam etmesine izin ver (graceful degradation)
+      setPhoneValidated(true);
+      return true;
+    } finally {
+      setPhoneValidating(false);
+    }
+  };
+
+  // Emailable ile email adresini doğrula
+  const validateEmailAddress = async (): Promise<boolean> => {
+    const email = contactInfo.email.trim();
+    
+    if (!EMAIL_REGEX.test(email)) {
+      setEmailError(t('contactModal.invalidEmail') || 'Invalid email format');
+      return false;
+    }
+
+    setEmailValidating(true);
+    setEmailError(null);
+
+    try {
+      const response = await fetch('/api/validate-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!data.valid && !data.skipped) {
+        const errorMessage = t('contactModal.invalidEmail') || 'This email address is invalid or undeliverable. Please check and try again.';
+        setEmailError(errorMessage);
+        setEmailValidated(false);
+        return false;
+      }
+
+      setEmailValidated(true);
+      setEmailError(null);
+      return true;
+    } catch (error) {
+      console.error('[validateEmail] Error:', error);
+      // API hatası durumunda devam etmesine izin ver (graceful degradation)
+      setEmailValidated(true);
+      return true;
+    } finally {
+      setEmailValidating(false);
+    }
+  };
+
   const isContactComplete = () => {
     const email = contactInfo.email.trim();
     const phone = contactInfo.phone.trim().replace(/\s/g, '');
@@ -590,6 +704,18 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
   const handleSendEmail = async () => {
     if (!isContactComplete() || !transformationResults) return;
+    
+    // Email doğrulaması yapılmamışsa önce doğrula
+    if (!emailValidated) {
+      const isEmailValid = await validateEmailAddress();
+      if (!isEmailValid) return;
+    }
+    
+    // Telefon doğrulaması yapılmamışsa önce doğrula
+    if (!phoneValidated) {
+      const isPhoneValid = await validatePhoneNumber();
+      if (!isPhoneValid) return;
+    }
     
     setSubmittingContact(true);
 
@@ -670,6 +796,18 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
   const handleSendWhatsApp = async () => {
     if (!isContactComplete() || !transformationResults) return;
+    
+    // Email doğrulaması yapılmamışsa önce doğrula
+    if (!emailValidated) {
+      const isEmailValid = await validateEmailAddress();
+      if (!isEmailValid) return;
+    }
+    
+    // Telefon doğrulaması yapılmamışsa önce doğrula
+    if (!phoneValidated) {
+      const isPhoneValid = await validatePhoneNumber();
+      if (!isPhoneValid) return;
+    }
     
     setSubmittingWhatsApp(true);
 
@@ -796,6 +934,18 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
   const handleSendBoth = async () => {
     if (!isContactComplete() || !transformationResults) return;
+    
+    // Email doğrulaması yapılmamışsa önce doğrula
+    if (!emailValidated) {
+      const isEmailValid = await validateEmailAddress();
+      if (!isEmailValid) return;
+    }
+    
+    // Telefon doğrulaması yapılmamışsa önce doğrula
+    if (!phoneValidated) {
+      const isPhoneValid = await validatePhoneNumber();
+      if (!isPhoneValid) return;
+    }
     
     setSubmittingContact(true);
     setSubmittingWhatsApp(true);
@@ -1358,14 +1508,34 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                     <label htmlFor="modal-email" className="block text-sm font-medium text-gray-700 mb-1.5">
                       {t('contactModal.field.email')}
                     </label>
-                    <input
-                      id="modal-email"
-                      type="email"
-                      value={contactInfo.email}
-                      onChange={(e) => setContactInfo({ ...contactInfo, email: e.target.value })}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all"
-                      placeholder="your.email@example.com"
-                    />
+                    <div className="relative">
+                      <input
+                        id="modal-email"
+                        type="email"
+                        value={contactInfo.email}
+                        onChange={(e) => handleEmailChange(e.target.value)}
+                        className={`w-full px-4 py-3 bg-gray-50 border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all ${
+                          emailError ? 'border-red-400 bg-red-50' : emailValidated ? 'border-green-400 bg-green-50' : 'border-gray-200'
+                        }`}
+                        placeholder="your.email@example.com"
+                      />
+                      {emailValidating && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <Loader2 className="w-4 h-4 animate-spin text-[#006069]" />
+                        </div>
+                      )}
+                      {emailValidated && !emailValidating && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                        </div>
+                      )}
+                    </div>
+                    {emailError && (
+                      <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                        <X className="w-3.5 h-3.5" />
+                        {emailError}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -1376,7 +1546,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                       <select
                         id="modal-countryCode"
                         value={contactInfo.countryCode}
-                        onChange={(e) => setContactInfo({ ...contactInfo, countryCode: e.target.value })}
+                        onChange={(e) => handleCountryCodeChange(e.target.value)}
                         aria-label={t('contactModal.field.countryCode')}
                         className="w-32 px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all text-sm"
                       >
@@ -1386,15 +1556,35 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                           </option>
                         ))}
                       </select>
-                      <input
-                        id="modal-phone"
-                        type="tel"
-                        value={contactInfo.phone}
-                        onChange={(e) => setContactInfo({ ...contactInfo, phone: e.target.value })}
-                        className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all"
-                        placeholder={t('contactModal.field.phonePlaceholder')}
-                      />
+                      <div className="flex-1 relative">
+                        <input
+                          id="modal-phone"
+                          type="tel"
+                          value={contactInfo.phone}
+                          onChange={(e) => handlePhoneChange(e.target.value)}
+                          className={`w-full px-4 py-3 bg-gray-50 border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069] focus:bg-white transition-all ${
+                            phoneError ? 'border-red-400 bg-red-50' : phoneValidated ? 'border-green-400 bg-green-50' : 'border-gray-200'
+                          }`}
+                          placeholder={t('contactModal.field.phonePlaceholder')}
+                        />
+                        {phoneValidating && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <Loader2 className="w-4 h-4 animate-spin text-[#006069]" />
+                          </div>
+                        )}
+                        {phoneValidated && !phoneValidating && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                          </div>
+                        )}
+                      </div>
                     </div>
+                    {phoneError && (
+                      <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                        <X className="w-3.5 h-3.5" />
+                        {phoneError}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -1411,10 +1601,20 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                   </p>
                 <button
                     onClick={handleSendBoth}
-                  disabled={!isContactComplete() || submittingContact || submittingWhatsApp}
+                  disabled={!isContactComplete() || submittingContact || submittingWhatsApp || phoneValidating || emailValidating}
                     className="w-full py-4 px-6 bg-gradient-to-r from-[#006069] to-[#004750] hover:from-[#004750] hover:to-[#003840] text-white font-semibold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
                 >
-                    {(submittingContact || submittingWhatsApp) ? (
+                    {emailValidating ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      {t('contactModal.validatingEmail') || 'Validating email...'}
+                    </>
+                  ) : phoneValidating ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      {t('contactModal.validatingPhone') || 'Validating phone...'}
+                    </>
+                  ) : (submittingContact || submittingWhatsApp) ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
                       {t('contactModal.sendLoading')}
