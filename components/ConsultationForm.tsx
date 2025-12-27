@@ -4,7 +4,7 @@ import { useEffect, useState, type SVGProps } from 'react';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { Upload, Loader2, Mail, X, CheckCircle, MessageCircle, Headphones, Info, Check } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/browser';
 import { useI18n } from '@/lib/i18n';
 import { SUPPORTED_LANGUAGES, type TranslationKey } from '@/lib/i18n/translations';
 
@@ -458,6 +458,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         const fileName = `${Date.now()}-${i}-${Math.random().toString(36).substring(7)}.${fileExt}`;
         const filePath = `consultations/${fileName}`;
 
+        const supabase = createClient();
         const { error: uploadError } = await supabase.storage
           .from('consultation-images')
           .upload(filePath, image);
@@ -594,9 +595,10 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
 
     try {
       // Veritabanına kaydet
+      const supabase = createClient();
       const fullPhoneNumber = `${contactInfo.countryCode}${contactInfo.phone.trim().replace(/\s/g, '')}`;
       for (const result of transformationResults) {
-        const { error: dbError } = await supabase.from('consultations').insert({
+        const { error: dbError } = await (supabase.from('consultations') as any).insert({
           first_name: contactInfo.firstName.trim(),
           last_name: contactInfo.lastName.trim(),
           email: contactInfo.email.trim(),
@@ -672,6 +674,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
     setSubmittingWhatsApp(true);
 
     try {
+      const supabase = createClient();
       // WhatsApp API için + işareti olmadan telefon numarası
       const countryCodeClean = contactInfo.countryCode.replace('+', '');
       const fullPhoneNumber = `${countryCodeClean}${contactInfo.phone.trim().replace(/\s/g, '')}`;
@@ -679,7 +682,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       
       // Veritabanına kaydet
       for (const result of transformationResults) {
-        const { error: dbError } = await supabase.from('consultations').insert({
+        const { error: dbError } = await (supabase.from('consultations') as any).insert({
           first_name: contactInfo.firstName.trim(),
           last_name: contactInfo.lastName.trim(),
           email: contactInfo.email.trim(),
@@ -736,8 +739,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         .getPublicUrl(pdfFileName);
 
       // PDF URL'ini veritabanına kaydet (tek sorgu ile güncelle)
-      supabase
-        .from('consultations')
+      (supabase.from('consultations') as any)
         .update({ pdf_url: pdfUrl })
         .eq('email', contactInfo.email.trim())
         .eq('phone', fullPhoneNumber)
@@ -799,6 +801,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
     setSubmittingWhatsApp(true);
 
     try {
+      const supabase = createClient();
       // WhatsApp API için + işareti olmadan telefon numarası
       const countryCodeClean = contactInfo.countryCode.replace('+', '');
       const fullPhoneNumber = `${countryCodeClean}${contactInfo.phone.trim().replace(/\s/g, '')}`;
@@ -806,7 +809,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
       
       // Veritabanına kaydet
       for (const result of transformationResults) {
-        const { error: dbError } = await supabase.from('consultations').insert({
+        const { error: dbError } = await (supabase.from('consultations') as any).insert({
           first_name: contactInfo.firstName.trim(),
           last_name: contactInfo.lastName.trim(),
           email: contactInfo.email.trim(),
@@ -880,8 +883,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         .getPublicUrl(pdfFileName);
 
       // PDF URL'ini veritabanına kaydet (fire and forget)
-      supabase
-        .from('consultations')
+      (supabase.from('consultations') as any)
         .update({ pdf_url: pdfUrl })
         .eq('email', contactInfo.email.trim())
         .eq('phone', fullPhoneNumber)

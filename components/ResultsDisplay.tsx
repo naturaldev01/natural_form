@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ArrowRight, Mail, X, CheckCircle, Loader2, MessageCircle } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/browser';
 
 interface Result {
   originalUrl: string;
@@ -60,8 +60,9 @@ export default function ResultsDisplay({
   };
 
   const saveToDatabase = async () => {
+      const supabase = createClient();
       for (const result of results) {
-        const { error: dbError } = await supabase.from('consultations').insert({
+        const { error: dbError } = await (supabase.from('consultations') as any).insert({
           first_name: contactInfo.firstName.trim(),
           last_name: contactInfo.lastName.trim(),
           email: contactInfo.email.trim(),
@@ -135,6 +136,7 @@ export default function ResultsDisplay({
       const contactName = `${contactInfo.firstName} ${contactInfo.lastName}`.trim();
       
       // PDF'i Supabase Storage'a yükle
+      const supabase = createClient();
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('consultation-images')
         .upload(`pdfs/${filename}`, await (await fetch(`data:application/pdf;base64,${pdfBase64}`)).blob(), {

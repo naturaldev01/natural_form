@@ -5,33 +5,13 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { 
   Loader2, LogOut, User, CheckCircle, XCircle, Clock, 
-  Users, Shield, RefreshCw, Search, FileImage, Eye, Calendar
+  Users, Shield, RefreshCw, Search
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/browser';
 import { getCurrentUser, signOut, UserProfile, hasRole } from '@/lib/auth';
 
 interface UserWithProfile extends UserProfile {
   // Additional fields if needed
-}
-
-
-interface Consultation {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  treatment_type: string;
-  original_image_url: string;
-  transformed_image_url: string;
-  created_at: string;
-  created_by: string | null;
-  creator?: {
-    first_name: string;
-    last_name: string;
-    email: string;
-    role: string;
-  };
 }
 
 export default function AdminPage() {
@@ -44,13 +24,6 @@ export default function AdminPage() {
   const [roleFilter, setRoleFilter] = useState<'all' | 'sales' | 'marketing' | 'admin'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
-  
-  // Consultations state
-  const [activeTab, setActiveTab] = useState<'users' | 'consultations'>('users');
-  const [consultations, setConsultations] = useState<Consultation[]>([]);
-  const [loadingConsultations, setLoadingConsultations] = useState(false);
-  const [consultationSearch, setConsultationSearch] = useState('');
-  const [selectedConsultation, setSelectedConsultation] = useState<Consultation | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -59,7 +32,6 @@ export default function AdminPage() {
   useEffect(() => {
     if (profile) {
       fetchUsers();
-      fetchConsultations();
     }
   }, [profile, filter, roleFilter]);
 
@@ -89,19 +61,20 @@ export default function AdminPage() {
   const fetchUsers = async () => {
     setLoadingUsers(true);
     try {
-      let query = supabase
-        .from('user_profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const supabase = createClient();
+      
+      let query = (supabase
+        .from('user_profiles') as any)
+        .select('id, first_name, last_name, email, phone, role, is_approved, created_at')
+        .order('created_at', { ascending: false })
+        .limit(100);
 
-      // Apply approval filter
       if (filter === 'pending') {
         query = query.eq('is_approved', false);
       } else if (filter === 'approved') {
         query = query.eq('is_approved', true);
       }
 
-      // Apply role filter
       if (roleFilter !== 'all') {
         query = query.eq('role', roleFilter);
       }
@@ -117,51 +90,17 @@ export default function AdminPage() {
     }
   };
 
-  const fetchConsultations = async () => {
-    setLoadingConsultations(true);
-    try {
-      // Fetch consultations - limited to 200 to prevent timeout
-      const { data: consultationsData, error: consultationsError } = await supabase
-        .from('consultations')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(200);
-
-      if (consultationsError) throw consultationsError;
-
-      // Fetch user profiles for created_by
-      const { data: profilesData } = await supabase
-        .from('user_profiles')
-        .select('id, first_name, last_name, email, role');
-
-      // Map creators to consultations
-      const consultationsWithCreators = (consultationsData || []).map(consultation => {
-        const creator = profilesData?.find(p => p.id === consultation.created_by);
-        return {
-          ...consultation,
-          creator: creator || null
-        };
-      });
-
-      setConsultations(consultationsWithCreators);
-    } catch {
-      // Failed to fetch consultations
-    } finally {
-      setLoadingConsultations(false);
-    }
-  };
-
   const handleApprove = async (userId: string) => {
     setProcessingId(userId);
     try {
-      const { error } = await supabase
-        .from('user_profiles')
+      const supabase = createClient();
+      const { error } = await (supabase
+        .from('user_profiles') as any)
         .update({ is_approved: true, updated_at: new Date().toISOString() })
         .eq('id', userId);
 
       if (error) throw error;
 
-      // Update local state
       setUsers(users.map(user => 
         user.id === userId ? { ...user, is_approved: true } : user
       ));
@@ -179,14 +118,14 @@ export default function AdminPage() {
 
     setProcessingId(userId);
     try {
-      const { error } = await supabase
-        .from('user_profiles')
+      const supabase = createClient();
+      const { error } = await (supabase
+        .from('user_profiles') as any)
         .update({ is_approved: false, updated_at: new Date().toISOString() })
         .eq('id', userId);
 
       if (error) throw error;
 
-      // Update local state
       setUsers(users.map(user => 
         user.id === userId ? { ...user, is_approved: false } : user
       ));
@@ -200,14 +139,14 @@ export default function AdminPage() {
   const handleChangeRole = async (userId: string, newRole: string) => {
     setProcessingId(userId);
     try {
-      const { error } = await supabase
-        .from('user_profiles')
+      const supabase = createClient();
+      const { error } = await (supabase
+        .from('user_profiles') as any)
         .update({ role: newRole, updated_at: new Date().toISOString() })
         .eq('id', userId);
 
       if (error) throw error;
 
-      // Update local state
       setUsers(users.map(user => 
         user.id === userId ? { ...user, role: newRole as any } : user
       ));
@@ -227,30 +166,13 @@ export default function AdminPage() {
     }
   };
 
-  // Helper function to check if consultation data should be hidden (test data for consultations)
-  const isTestConsultationData = (email?: string, firstName?: string, lastName?: string) => {
-    if (!email && !firstName && !lastName) return false;
-    
-    const emailLower = email?.toLowerCase() || '';
-    const fullName = `${firstName || ''} ${lastName || ''}`.toLowerCase();
-    
-    // Hide test consultation data (internal emails and specific test accounts)
-    if (emailLower.includes('@natural.clinic')) return true;
-    if (emailLower.includes('@naturalclinic.tr')) return true;
-    if (emailLower === 'oguzhansivri53@gmail.com') return true;
-    if (fullName.includes('oğuzhan sivri') || fullName.includes('oguzhan sivri')) return true;
-    
-    return false;
-  };
-
-  // For user management - only hide specific test accounts, not team members
+  // Helper function to check if user data should be hidden (test accounts)
   const isTestUserData = (email?: string, firstName?: string, lastName?: string) => {
     if (!email && !firstName && !lastName) return false;
     
     const emailLower = email?.toLowerCase() || '';
     const fullName = `${firstName || ''} ${lastName || ''}`.toLowerCase();
     
-    // Only hide specific test accounts, NOT team members (@natural.clinic, @naturalclinic.tr)
     if (emailLower === 'oguzhansivri53@gmail.com') return true;
     if (fullName.includes('oğuzhan sivri') || fullName.includes('oguzhan sivri')) return true;
     
@@ -258,7 +180,6 @@ export default function AdminPage() {
   };
 
   const filteredUsers = users.filter(user => {
-    // Hide test user data (but show team members)
     if (isTestUserData(user.email, user.first_name, user.last_name)) return false;
     
     if (!searchTerm) return true;
@@ -270,25 +191,7 @@ export default function AdminPage() {
     );
   });
 
-  const filteredConsultations = consultations.filter(consultation => {
-    // Hide test consultation data
-    if (isTestConsultationData(consultation.email, consultation.first_name, consultation.last_name)) return false;
-    
-    if (!consultationSearch) return true;
-    const search = consultationSearch.toLowerCase();
-    return (
-      consultation.first_name?.toLowerCase().includes(search) ||
-      consultation.last_name?.toLowerCase().includes(search) ||
-      consultation.email?.toLowerCase().includes(search) ||
-      consultation.creator?.first_name?.toLowerCase().includes(search) ||
-      consultation.creator?.last_name?.toLowerCase().includes(search)
-    );
-  });
-
-  // Filter out test data from counts (use consultation filter for real data counts)
   const realUsers = users.filter(u => !isTestUserData(u.email, u.first_name, u.last_name));
-  const realConsultations = consultations.filter(c => !isTestConsultationData(c.email, c.first_name, c.last_name));
-  
   const pendingCount = realUsers.filter(u => !u.is_approved && (u.role === 'sales' || u.role === 'marketing')).length;
 
   if (loading) {
@@ -369,46 +272,6 @@ export default function AdminPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`px-6 py-3 rounded-xl font-medium transition-all ${
-              activeTab === 'users'
-                ? 'bg-[#006069] text-white shadow-lg'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              User Management
-              {pendingCount > 0 && (
-                <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                  {pendingCount}
-                </span>
-              )}
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('consultations')}
-            className={`px-6 py-3 rounded-xl font-medium transition-all ${
-              activeTab === 'consultations'
-                ? 'bg-[#006069] text-white shadow-lg'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <FileImage className="w-5 h-5" />
-              Consultations
-              <span className="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full">
-                {realConsultations.length}
-              </span>
-            </div>
-          </button>
-        </div>
-
-        {activeTab === 'users' && (
-          <>
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
@@ -655,259 +518,7 @@ export default function AdminPage() {
             )}
           </div>
         </div>
-          </>
-        )}
-
-        {activeTab === 'consultations' && (
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-            {/* Consultations Header */}
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h2 className="text-xl font-bold text-gray-900">Consultation History</h2>
-                
-                <div className="flex items-center gap-3">
-                  {/* Search */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search consultations..."
-                      value={consultationSearch}
-                      onChange={(e) => setConsultationSearch(e.target.value)}
-                      className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#006069] focus:border-[#006069]"
-                    />
-                  </div>
-
-                  {/* Refresh */}
-                  <button
-                    onClick={fetchConsultations}
-                    disabled={loadingConsultations}
-                    className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                  >
-                    <RefreshCw className={`w-4 h-4 text-gray-600 ${loadingConsultations ? 'animate-spin' : ''}`} />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Consultations Table */}
-            <div className="overflow-x-auto">
-              {loadingConsultations ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-[#006069]" />
-                </div>
-              ) : filteredConsultations.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-                  <FileImage className="w-12 h-12 mb-4 text-gray-300" />
-                  <p>No consultations found</p>
-                </div>
-              ) : (
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        Patient
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        Treatment
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        Created By
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {filteredConsultations.map((consultation) => (
-                      <tr key={consultation.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-[#006069] to-[#004750] rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                              {consultation.first_name?.charAt(0) || '?'}{consultation.last_name?.charAt(0) || '?'}
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">
-                                {consultation.first_name} {consultation.last_name}
-                              </p>
-                              <p className="text-sm text-gray-500">{consultation.email || 'No email'}</p>
-                              {consultation.phone && (
-                                <p className="text-xs text-gray-400">{consultation.phone}</p>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                            consultation.treatment_type === 'teeth' 
-                              ? 'bg-blue-100 text-blue-700' 
-                              : 'bg-purple-100 text-purple-700'
-                          }`}>
-                            {consultation.treatment_type === 'teeth' ? '🦷 Teeth' : '💇 Hair'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          {consultation.creator ? (
-                            <div className="flex items-center gap-2">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium ${
-                                consultation.creator.role === 'admin' ? 'bg-purple-500' :
-                                consultation.creator.role === 'marketing' ? 'bg-blue-500' :
-                                consultation.creator.role === 'sales' ? 'bg-green-500' : 'bg-gray-500'
-                              }`}>
-                                {consultation.creator.first_name?.charAt(0)}{consultation.creator.last_name?.charAt(0)}
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">
-                                  {consultation.creator.first_name} {consultation.creator.last_name}
-                                </p>
-                                <p className={`text-xs capitalize ${getRoleBadgeColor(consultation.creator.role).replace('bg-', 'text-').replace('-100', '-600')}`}>
-                                  {consultation.creator.role}
-                                </p>
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-sm text-gray-400 italic">Public Form</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <Calendar className="w-4 h-4" />
-                            {new Date(consultation.created_at).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => setSelectedConsultation(consultation)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#006069]/10 hover:bg-[#006069]/20 text-[#006069] text-sm font-medium rounded-lg transition-colors"
-                            >
-                              <Eye className="w-4 h-4" />
-                              View
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Consultation Detail Modal */}
-        {selectedConsultation && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">
-                    Consultation Details
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {selectedConsultation.first_name} {selectedConsultation.last_name} • {selectedConsultation.treatment_type === 'teeth' ? '🦷 Teeth' : '💇 Hair'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setSelectedConsultation(null)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <XCircle className="w-6 h-6 text-gray-400" />
-                </button>
-              </div>
-              
-              <div className="p-6 space-y-6">
-                {/* Patient Info */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Patient Name</p>
-                    <p className="font-medium text-gray-900">{selectedConsultation.first_name} {selectedConsultation.last_name}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Email</p>
-                    <p className="font-medium text-gray-900">{selectedConsultation.email || 'N/A'}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Phone</p>
-                    <p className="font-medium text-gray-900">{selectedConsultation.phone || 'N/A'}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Created By</p>
-                    <p className="font-medium text-gray-900">
-                      {selectedConsultation.creator 
-                        ? `${selectedConsultation.creator.first_name} ${selectedConsultation.creator.last_name} (${selectedConsultation.creator.role})`
-                        : 'Public Form'
-                      }
-                    </p>
-                  </div>
-                </div>
-
-                {/* Images */}
-                <div>
-                  <p className="text-sm font-medium text-gray-700 mb-3">Transformation Results</p>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs text-gray-500 mb-2 text-center">Before</p>
-                      <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-100">
-                        {selectedConsultation.original_image_url ? (
-                          <img
-                            src={selectedConsultation.original_image_url}
-                            alt="Before"
-                            className="w-full h-auto"
-                          />
-                        ) : (
-                          <div className="h-48 flex items-center justify-center text-gray-400">
-                            No image
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-2 text-center">After</p>
-                      <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-100">
-                        {selectedConsultation.transformed_image_url ? (
-                          <img
-                            src={selectedConsultation.transformed_image_url}
-                            alt="After"
-                            className="w-full h-auto"
-                          />
-                        ) : (
-                          <div className="h-48 flex items-center justify-center text-gray-400">
-                            No image
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Date */}
-                <div className="text-center text-sm text-gray-500">
-                  Created on {new Date(selectedConsultation.created_at).toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );
 }
-

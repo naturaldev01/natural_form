@@ -8,7 +8,7 @@ import {
   Calendar, Phone, Mail, User, TrendingUp, Clock,
   Download, Filter, ChevronDown, ChevronUp, Eye, X, FileImage, FileText
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/browser';
 import { getCurrentUser, signOut, UserProfile, hasRole } from '@/lib/auth';
 
 interface Consultation {
@@ -19,9 +19,12 @@ interface Consultation {
   phone: string;
   treatment_type: string;
   created_at: string;
+  pdf_url?: string;
+}
+
+interface ConsultationDetail extends Consultation {
   original_image_url?: string;
   transformed_image_url?: string;
-  pdf_url?: string;
 }
 
 // Minimum date for data: December 20, 2025
@@ -40,7 +43,8 @@ export default function DashboardPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedConsultation, setSelectedConsultation] = useState<Consultation | null>(null);
+  const [selectedConsultation, setSelectedConsultation] = useState<ConsultationDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const itemsPerPage = 20;
 
   // Date preset helpers
@@ -119,67 +123,56 @@ export default function DashboardPage() {
   };
 
   const checkAuth = useCallback(async () => {
-    console.log('[DEBUG] checkAuth started');
     try {
       const userData = await getCurrentUser();
-      console.log('[DEBUG] getCurrentUser result:', userData);
       
       if (!userData || !userData.profile) {
-        console.log('[DEBUG] No user or profile, redirecting to login');
         router.push('/login');
         return;
       }
 
       // Only sales, marketing and admin can access this page
       if (!hasRole(userData.profile, ['admin', 'sales', 'marketing'])) {
-        console.log('[DEBUG] User does not have required role');
         router.push('/');
         return;
       }
 
       // Check if approved
       if (!userData.profile.is_approved) {
-        console.log('[DEBUG] User not approved');
         router.push('/login');
         return;
       }
 
-      console.log('[DEBUG] Auth successful, setting profile:', userData.profile);
       setProfile(userData.profile);
     } catch (err) {
-      console.error('[DEBUG] checkAuth error:', err);
+      console.error('[Dashboard] Auth error:', err);
       router.push('/login');
     } finally {
       setLoading(false);
-      console.log('[DEBUG] checkAuth finished');
     }
   }, [router]);
 
   const fetchConsultations = useCallback(async () => {
     setLoadingData(true);
-    console.log('[DEBUG] fetchConsultations started, MIN_DATE:', MIN_DATE, 'sortField:', sortField, 'sortOrder:', sortOrder);
     try {
-      // Fetch unique teeth consultations from December 20, 2025 onwards
-      // Using unique_consultations view for deduplication by name
-      console.log('[DEBUG] Calling supabase...');
-      const { data, error } = await supabase
-        .from('unique_consultations')
-        .select('id, first_name, last_name, email, phone, treatment_type, created_at, original_image_url, transformed_image_url, pdf_url')
+      const supabase = createClient();
+      
+      // Optimized query: sadece gerekli kolonlar, limit düşürüldü
+      const { data, error } = await (supabase
+        .from('unique_consultations') as any)
+        .select('id, first_name, last_name, email, phone, treatment_type, created_at, pdf_url')
         .order(sortField, { ascending: sortOrder === 'asc' })
-        .limit(200);
+        .limit(50);  // 200'den 50'ye düşürüldü - pagination ile artırılabilir
 
-      console.log('[DEBUG] Supabase response - data:', data?.length, 'error:', error);
       if (error) {
-        console.error('[DEBUG] Supabase error details:', JSON.stringify(error));
+        console.error('[Dashboard] Fetch error:', error.message);
         throw error;
       }
       setConsultations(data || []);
-      console.log('[DEBUG] Consultations set, count:', (data || []).length);
     } catch (err) {
-      console.error('[DEBUG] Failed to fetch consultations:', err);
+      console.error('[Dashboard] Failed to fetch consultations:', err);
     } finally {
       setLoadingData(false);
-      console.log('[DEBUG] fetchConsultations finished');
     }
   }, [sortField, sortOrder]);
 
@@ -210,6 +203,33 @@ export default function DashboardPage() {
       setSortOrder('desc');
     }
     setCurrentPage(1);
+  };
+
+  // Lazy load consultation detail (images) when viewing
+  const handleViewConsultation = async (consultation: Consultation) => {
+    setLoadingDetail(true);
+    setSelectedConsultation({ ...consultation });
+    
+    try {
+      const supabase = createClient();
+      const { data, error } = await (supabase
+        .from('unique_consultations') as any)
+        .select('original_image_url, transformed_image_url')
+        .eq('id', consultation.id)
+        .single();
+      
+      if (!error && data) {
+        setSelectedConsultation({
+          ...consultation,
+          original_image_url: data.original_image_url,
+          transformed_image_url: data.transformed_image_url,
+        });
+      }
+    } catch (err) {
+      console.error('[Dashboard] Failed to load detail:', err);
+    } finally {
+      setLoadingDetail(false);
+    }
   };
 
   // Helper function to check if data should be hidden (test data)
@@ -695,17 +715,13 @@ export default function DashboardPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        {(consultation.original_image_url || consultation.transformed_image_url) ? (
-                          <button
-                            onClick={() => setSelectedConsultation(consultation)}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-[#006069]/10 hover:bg-[#006069]/20 text-[#006069] text-sm font-medium rounded-lg transition-colors"
-                          >
-                            <Eye className="w-4 h-4" />
-                            View
-                          </button>
-                        ) : (
-                          <span className="text-sm text-gray-400">-</span>
-                        )}
+                        <button
+                          onClick={() => handleViewConsultation(consultation)}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-[#006069]/10 hover:bg-[#006069]/20 text-[#006069] text-sm font-medium rounded-lg transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                          View
+                        </button>
                       </td>
                       <td className="px-6 py-4">
                         {consultation.pdf_url ? (
@@ -806,49 +822,56 @@ export default function DashboardPage() {
               </div>
 
               {/* Before/After Images */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Before */}
-                <div>
-                  <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                    <FileImage className="w-4 h-4" />
-                    Before (Original)
-                  </p>
-                  <div className="aspect-[4/3] bg-gray-100 rounded-xl overflow-hidden">
-                    {selectedConsultation.original_image_url ? (
-                      <img
-                        src={selectedConsultation.original_image_url}
-                        alt="Before"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        <span>No image available</span>
-                      </div>
-                    )}
-                  </div>
+              {loadingDetail ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-[#006069]" />
+                  <span className="ml-2 text-gray-500">Loading images...</span>
                 </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Before */}
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <FileImage className="w-4 h-4" />
+                      Before (Original)
+                    </p>
+                    <div className="aspect-[4/3] bg-gray-100 rounded-xl overflow-hidden">
+                      {selectedConsultation.original_image_url ? (
+                        <img
+                          src={selectedConsultation.original_image_url}
+                          alt="Before"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <span>No image available</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-                {/* After */}
-                <div>
-                  <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                    <FileImage className="w-4 h-4" />
-                    After (Transformed)
-                  </p>
-                  <div className="aspect-[4/3] bg-gray-100 rounded-xl overflow-hidden">
-                    {selectedConsultation.transformed_image_url ? (
-                      <img
-                        src={selectedConsultation.transformed_image_url}
-                        alt="After"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        <span>No image available</span>
-                      </div>
-                    )}
+                  {/* After */}
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <FileImage className="w-4 h-4" />
+                      After (Transformed)
+                    </p>
+                    <div className="aspect-[4/3] bg-gray-100 rounded-xl overflow-hidden">
+                      {selectedConsultation.transformed_image_url ? (
+                        <img
+                          src={selectedConsultation.transformed_image_url}
+                          alt="After"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <span>No image available</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

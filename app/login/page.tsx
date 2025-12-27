@@ -42,12 +42,19 @@ export default function LoginPage() {
         router.push('/');
       }
     } catch (err: any) {
-      if (err.message?.includes('Invalid login credentials')) {
+      // Fail-fast: net hata mesajları
+      const message = err.message || '';
+      
+      if (message.includes('timed out') || message.includes('timeout')) {
+        setError('Connection timed out. Please check your internet and try again.');
+      } else if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
+        setError('Network error. Please check your connection and try again.');
+      } else if (message.includes('Invalid login credentials')) {
         setError('Invalid email or password');
-      } else if (err.message?.includes('Email not confirmed')) {
+      } else if (message.includes('Email not confirmed')) {
         setError('Please verify your email address before logging in');
       } else {
-        setError(err.message || 'Failed to sign in');
+        setError(message || 'Failed to sign in. Please try again.');
       }
     } finally {
       setLoading(false);

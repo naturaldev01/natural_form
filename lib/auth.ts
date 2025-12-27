@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { createClient } from './supabase/browser';
 
 export interface UserProfile {
   id: string;
@@ -26,23 +26,37 @@ export interface SignInData {
   password: string;
 }
 
+// Timeout helper - sonsuz beklemeyi önler
+function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> {
+  const timeout = new Promise<never>((_, reject) => 
+    setTimeout(() => reject(new Error(errorMessage)), ms)
+  );
+  return Promise.race([promise, timeout]);
+}
+
 // Sign up new user
 export async function signUp(data: SignUpData) {
+  const supabase = createClient();
+  
   // Create auth user with metadata
   // A database trigger will automatically create the user_profile
   // Note: First user to register will automatically become admin
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email: data.email,
-    password: data.password,
-    options: {
-      data: {
-        first_name: data.firstName,
-        last_name: data.lastName,
-        role: data.role,
-        phone: data.phone || null,
+  const { data: authData, error: authError } = await withTimeout(
+    supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: {
+          first_name: data.firstName,
+          last_name: data.lastName,
+          role: data.role,
+          phone: data.phone || null,
+        }
       }
-    }
-  });
+    }),
+    15000,
+    'Registration timed out. Please try again.'
+  );
 
   if (authError) throw authError;
   if (!authData.user) throw new Error('Failed to create user');
@@ -55,55 +69,57 @@ export async function signUp(data: SignUpData) {
 
 // Sign in existing user
 export async function signIn(data: SignInData) {
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+  const supabase = createClient();
+  
+  const { data: authData, error: authError } = await withTimeout(
+    supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
-    });
+    }),
+    15000,
+    'Login timed out. Please check your connection and try again.'
+  );
 
-    if (authError) {
-      throw authError;
-    }
+  if (authError) {
+    throw authError;
+  }
 
-    if (!authData.user) {
-      throw new Error('No user returned from sign in');
-    }
+  if (!authData.user) {
+    throw new Error('No user returned from sign in');
+  }
 
-    // Wait a moment for the session to be properly set before querying profile
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Try to get profile, with retry
-    let profile = await getUserProfile(authData.user.id);
-    
-    // If profile not found, wait and retry once more (RLS might need session to propagate)
-    if (!profile) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      profile = await getUserProfile(authData.user.id);
-    }
-    
-    return { user: authData.user, profile };
+  // Kısa bir bekleme - session'ın yerleşmesi için
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  // Profile'ı çek
+  const profile = await getUserProfile(authData.user.id);
+  
+  return { user: authData.user, profile };
 }
 
 // Sign out
 export async function signOut() {
+  const supabase = createClient();
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
 }
 
-// Get current user - simplified without custom timeout
-// Supabase has its own timeout settings
+// Get current user - simplified with fail-fast
 export async function getCurrentUser() {
-  console.log('[DEBUG] getCurrentUser called');
+  const supabase = createClient();
+  
   try {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    console.log('[DEBUG] getUser response - user:', user?.id, 'error:', error);
+    const { data: { user }, error } = await withTimeout(
+      supabase.auth.getUser(),
+      10000,
+      'Session check timed out'
+    );
     
     if (error || !user) {
-      console.log('[DEBUG] No user found or error');
       return null;
     }
     
     const profile = await getUserProfile(user.id);
-    console.log('[DEBUG] getCurrentUser complete - profile:', profile?.email);
     return { user, profile };
   } catch (err) {
     console.error('getCurrentUser error:', err);
@@ -111,25 +127,27 @@ export async function getCurrentUser() {
   }
 }
 
-// Get user profile - simplified without custom timeout
-// Supabase has its own timeout (60s for authenticated users)
+// Get user profile - with timeout and minimal select
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
-  console.log('[DEBUG] getUserProfile called for userId:', userId);
+  const supabase = createClient();
+  
   try {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    const result = await withTimeout<{ data: UserProfile | null; error: any }>(
+      (supabase
+        .from('user_profiles') as any)
+        .select('id, email, first_name, last_name, role, phone, is_approved, created_at, updated_at')
+        .eq('id', userId)
+        .single(),
+      8000,
+      'Profile fetch timed out'
+    );
     
-    console.log('[DEBUG] getUserProfile response - data:', data, 'error:', error);
-    
-    if (error) {
-      console.error('getUserProfile error:', error.message, 'code:', error.code, 'userId:', userId);
+    if (result.error) {
+      console.error('getUserProfile error:', result.error.message);
       return null;
     }
 
-    return data;
+    return result.data;
   } catch (err) {
     console.error('getUserProfile exception:', err);
     return null;
@@ -148,15 +166,25 @@ export function isApproved(profile: UserProfile | null): boolean {
   return profile.is_approved;
 }
 
-// Listen to auth state changes
+// Listen to auth state changes - with error handling
 export function onAuthStateChange(callback: (user: any, profile: UserProfile | null) => void) {
+  const supabase = createClient();
+  
   return supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_OUT') {
+      callback(null, null);
+      return;
+    }
+    
     if (session?.user) {
-      const profile = await getUserProfile(session.user.id);
-      callback(session.user, profile);
+      try {
+        const profile = await getUserProfile(session.user.id);
+        callback(session.user, profile);
+      } catch {
+        callback(session.user, null);
+      }
     } else {
       callback(null, null);
     }
   });
 }
-

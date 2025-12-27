@@ -1,14 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-
-// Environment variables - no fallbacks for security
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Please check your .env.local file.');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Re-export from new location for backward compatibility
+export { createClient, supabase } from './supabase/browser';
 
 export interface Consultation {
   id: string;
@@ -21,4 +12,3 @@ export interface Consultation {
   transformed_image_url: string | null;
   created_at: string;
 }
-
