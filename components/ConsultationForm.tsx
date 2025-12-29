@@ -15,6 +15,37 @@ const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent
   WHATSAPP_MESSAGE
 )}`;
 
+const ZOHO_WEBHOOK_URL = 'https://flow.zoho.eu/20093756223/flow/webhook/incoming?zapikey=1001.415d875f40a21371ff9742e4b076dbf6.075db463c228738acb8c5085ba9b2dd5&isdebug=false';
+
+async function sendToZoho(data: {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  pdfUrl: string;
+  language: string;
+}) {
+  try {
+    await fetch(ZOHO_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        first_name: data.firstName,
+        last_name: data.lastName,
+        phone: data.phone,
+        email: data.email,
+        pdf_url: data.pdfUrl,
+        language: data.language,
+      }),
+    });
+  } catch (error) {
+    // Zoho webhook hatası ana akışı bloklamasın
+    console.error('[Zoho Webhook] Error:', error);
+  }
+}
+
 const WhatsAppIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true" {...props}>
     <path d="M16 3c-7.18 0-13 5.69-13 12.68 0 2.23.6 4.33 1.76 6.18L3 29l7.35-1.92A13.5 13.5 0 0 0 16 28c7.18 0 13-5.69 13-12.68C29 8.69 23.18 3 16 3zm0 22.95a10.8 10.8 0 0 1-4.9-1.16l-.36-.19-4.27 1.12 1.14-4.05-.22-.34A10 10 0 0 1 5.74 15.7c0-5.56 4.6-10.08 10.26-10.08 5.66 0 10.26 4.52 10.26 10.08 0 5.56-4.6 10.25-10.26 10.25zm6.02-7.64c-.33-.17-1.94-.94-2.23-1.05-.3-.11-.52-.17-.74.16-.22.33-.85 1.05-1.03 1.27-.19.22-.37.25-.7.08-.33-.16-1.36-.51-2.58-1.63-.95-.85-1.59-1.88-1.78-2.2-.19-.33-.02-.51.14-.68.14-.14.33-.37.48-.54.16-.19.22-.33.33-.54.11-.22.05-.4-.03-.56-.08-.16-.72-1.74-.99-2.39-.27-.65-.54-.55-.73-.56l-.62-.01c-.22 0-.56.08-.85.4-.29.32-1.12 1.08-1.12 2.63 0 1.55 1.15 3.05 1.31 3.26.16.22 2.22 3.36 5.39 4.71a9.7 9.7 0 0 0 1.8.65c.74.24 1.42.2 1.96.13.6-.09 1.92-.78 2.18-1.53.27-.75.27-1.39.19-1.54-.08-.14-.3-.22-.63-.39z" />
@@ -783,7 +814,17 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         if (dbError) throw dbError;
       }
 
-      // 4. Email gönder
+      // 4. Zoho'ya lead gönder
+      await sendToZoho({
+        firstName: contactInfo.firstName.trim(),
+        lastName: contactInfo.lastName.trim(),
+        phone: fullPhoneNumber,
+        email: contactInfo.email.trim(),
+        pdfUrl: pdfUrl || '',
+        language: language,
+      });
+
+      // 5. Email gönder
       const filename = `natural-clinic-${Date.now()}.pdf`;
       const response = await fetch('/api/send-pdf', {
         method: 'POST',
@@ -895,7 +936,17 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         }
       }
 
-      // 4. WhatsApp Cloud API ile template mesajı gönder
+      // 4. Zoho'ya lead gönder
+      await sendToZoho({
+        firstName: contactInfo.firstName.trim(),
+        lastName: contactInfo.lastName.trim(),
+        phone: fullPhoneNumber,
+        email: contactInfo.email.trim(),
+        pdfUrl: pdfUrl || '',
+        language: language,
+      });
+
+      // 5. WhatsApp Cloud API ile template mesajı gönder
       const response = await fetch('/api/send-whatsapp', {
         method: 'POST',
         headers: {
@@ -1015,9 +1066,19 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         }
       }
 
+      // 4. Zoho'ya lead gönder
+      await sendToZoho({
+        firstName: contactInfo.firstName.trim(),
+        lastName: contactInfo.lastName.trim(),
+        phone: fullPhoneNumber,
+        email: contactInfo.email.trim(),
+        pdfUrl: pdfUrl || '',
+        language: language,
+      });
+
       const filename = `natural-clinic-${Date.now()}.pdf`;
 
-      // 4. Email gönder (paralel)
+      // 5. Email gönder (paralel)
       const emailPromise = fetch('/api/send-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1029,7 +1090,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         }),
       });
 
-      // 5. WhatsApp Cloud API ile template mesajı gönder (paralel)
+      // 6. WhatsApp Cloud API ile template mesajı gönder (paralel)
       const whatsappPromise = fetch('/api/send-whatsapp', {
         method: 'POST',
         headers: {
