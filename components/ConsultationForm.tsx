@@ -15,8 +15,6 @@ const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent
   WHATSAPP_MESSAGE
 )}`;
 
-const ZOHO_WEBHOOK_URL = 'https://flow.zoho.eu/20093756223/flow/webhook/incoming?zapikey=1001.415d875f40a21371ff9742e4b076dbf6.075db463c228738acb8c5085ba9b2dd5&isdebug=false';
-
 async function sendToZoho(data: {
   firstName: string;
   lastName: string;
@@ -26,20 +24,18 @@ async function sendToZoho(data: {
   language: string;
 }) {
   try {
-    await fetch(ZOHO_WEBHOOK_URL, {
+    const response = await fetch('/api/send-to-zoho', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        first_name: data.firstName,
-        last_name: data.lastName,
-        phone: data.phone,
-        email: data.email,
-        pdf_url: data.pdfUrl,
-        language: data.language,
-      }),
+      body: JSON.stringify(data),
     });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('[Zoho Webhook] API Error:', errorData);
+    }
   } catch (error) {
     // Zoho webhook hatası ana akışı bloklamasın
     console.error('[Zoho Webhook] Error:', error);
