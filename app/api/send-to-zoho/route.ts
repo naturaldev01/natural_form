@@ -26,8 +26,7 @@ export async function POST(req: Request) {
         phone: phone,
         email: email,
         pdf_url: pdfUrl || '',
-        language: language || 'en',
-        tag: 'ai-result',
+        language: language || 'en'
       }),
     });
 
