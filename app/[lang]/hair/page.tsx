@@ -1,5 +1,6 @@
+import HairPage from '@/app/hair/page';
 import { SUPPORTED_LANGUAGES } from '@/lib/i18n/translations';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 
 interface LocaleHairPageProps {
   params: Promise<{
@@ -14,7 +15,7 @@ export default async function LocaleHairPage({ params }: LocaleHairPageProps) {
     notFound();
   }
 
-  redirect(`/${lang}/teeth`);
+  return <HairPage />;
 }
 
 export function generateStaticParams() {

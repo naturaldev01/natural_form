@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-const VALIDATION_PROMPT = `
+const TEETH_VALIDATION_PROMPT = `
 You are a dental photo validator for a smile design AI tool.
 
 Your task is to check if the photo is TECHNICALLY SUITABLE for AI teeth transformation.
@@ -98,6 +98,101 @@ Analyze the photo and respond ONLY with a JSON object:
 }
 `;
 
+const HAIR_VALIDATION_PROMPT = `
+You are a hair transplant photo validator for a hair restoration AI simulation tool.
+
+Your task is to check if the photo is TECHNICALLY SUITABLE for AI hair transformation.
+We need to see the hairline and scalp area clearly, but be REASONABLE - don't reject good photos for minor issues.
+
+=== WHAT WE NEED ===
+We need to see the HAIR/HAIRLINE AREA CLEARLY to do hair transformation. This means:
+- Person's face visible with forehead/hairline area showing
+- We must be able to see the FRONTAL HAIRLINE clearly
+- The scalp/hair area must be visible (no hats, caps, or head coverings)
+- The face/head area must be LARGE enough in the photo
+
+=== MINIMUM REQUIREMENTS FOR A VALID PHOTO ===
+1. FULL FACE visible - eyes, nose, and forehead must ALL be visible in the frame
+2. HAIRLINE VISIBLE - frontal hairline must be clearly visible (forehead not covered)
+3. NO HEAD COVERING - no hats, caps, scarves, or anything covering the head
+4. UPRIGHT position - person should be standing or sitting, NOT lying down
+5. Frontal or near-frontal view (face looking toward camera)
+6. CLOSE ENOUGH - face must be large enough to see hairline details
+
+=== AUTOMATIC REJECTION (isValid: false) ===
+REJECT the photo ONLY if ANY of these SERIOUS issues are true:
+
+1. HEAD COVERING
+   - Person is wearing a hat, cap, beanie, turban, scarf, or any head covering
+   - Cannot see the natural hairline
+   - Issue: "head covering detected - please remove hat or cap"
+
+2. FOREHEAD NOT VISIBLE
+   - Forehead is cut off by the frame
+   - Hair styled to completely cover forehead (bangs covering entire forehead)
+   - Issue: "forehead not visible - please show your hairline"
+
+3. NO FACE VISIBLE
+   - Photo shows only the back or top of head
+   - Cannot see the person's face
+   - Issue: "face not visible - need frontal photo"
+
+4. CLOSE-UP OF SCALP ONLY
+   - Photo shows ONLY scalp/hair without face
+   - The person's EYES are NOT visible in the photo
+   - Issue: "need full face photo with hairline visible"
+
+5. DISTANT/FULL BODY SHOT
+   - Person is far from camera (full body or most of body visible)
+   - Face is small in the frame
+   - Cannot clearly see hairline details
+   - Issue: "photo taken from too far - please take a closer photo"
+
+6. LYING DOWN POSITION
+   - Person is clearly lying on bed, couch, or floor
+   - Photo taken from above while person is horizontal
+   - Issue: "please take photo while standing or sitting upright"
+
+7. WRONG ANGLE (SEVERE)
+   - Face turned significantly to the side (profile view, >45 degrees)
+   - Cannot see both eyes
+   - Issue: "please look straight at the camera"
+
+8. VERY POOR QUALITY
+   - Extremely blurry or out of focus (cannot distinguish hairline)
+   - Too dark to see hair/scalp area
+   - Issue: "photo quality too low - please take a clearer photo"
+
+=== WHAT TO ACCEPT (IMPORTANT!) ===
+ACCEPT photos where:
+- Full face is visible (eyes, nose, forehead)
+- Hairline/forehead area is clearly visible
+- Person is upright and facing camera
+- Photo is clear enough to see hairline details
+- Hair is thin, receding, or bald - THIS IS FINE! This is what we're simulating!
+
+=== DO NOT REJECT FOR THESE (VERY IMPORTANT!) ===
+- Bald or balding head - THIS IS FINE! We're simulating hair restoration.
+- Receding hairline - THIS IS FINE! This is exactly what we need to see.
+- Thin hair or visible scalp - THIS IS FINE! 
+- Slightly imperfect lighting
+- Minor angle variations (up to ±30 degrees is OK)
+- Any facial expression - THIS IS FINE if hairline is visible!
+- Glasses are OK as long as forehead/hairline is visible
+
+=== KEY POINT ===
+If you can clearly see the person's face AND their hairline/forehead area (without any covering), the photo is probably VALID.
+Don't be overly strict. We want to help people, not reject them for minor issues.
+
+Analyze the photo and respond ONLY with a JSON object:
+{
+  "isValid": true/false,
+  "confidence": 0.0-1.0,
+  "reason": "brief explanation",
+  "issues": ["list", "of", "issues"] // empty array if valid
+}
+`;
+
 const buildResponse = (body: Record<string, unknown>, status = 200) =>
   NextResponse.json(body, {
     status,
@@ -120,11 +215,14 @@ interface ValidationResult {
 
 async function validatePhotoWithGemini(
   base64Image: string,
-  mimeType: string
+  mimeType: string,
+  treatmentType: 'teeth' | 'hair' = 'teeth'
 ): Promise<ValidationResult> {
   if (!GEMINI_API_KEY) {
     throw new Error('Gemini API key not configured');
   }
+
+  const validationPrompt = treatmentType === 'hair' ? HAIR_VALIDATION_PROMPT : TEETH_VALIDATION_PROMPT;
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_API_KEY}`,
@@ -135,7 +233,7 @@ async function validatePhotoWithGemini(
         contents: [
           {
             parts: [
-              { text: VALIDATION_PROMPT },
+              { text: validationPrompt },
               {
                 inline_data: {
                   mime_type: mimeType,
@@ -190,7 +288,7 @@ async function validatePhotoWithGemini(
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { imageData, mimeType } = body;
+    const { imageData, mimeType, treatmentType } = body;
 
     if (!imageData || typeof imageData !== 'string') {
       return buildResponse({ error: 'Image data is required' }, 400);
@@ -200,10 +298,13 @@ export async function POST(req: Request) {
       return buildResponse({ error: 'MIME type is required' }, 400);
     }
 
+    // Validate treatment type
+    const validTreatmentType: 'teeth' | 'hair' = treatmentType === 'hair' ? 'hair' : 'teeth';
+
     // Remove data URL prefix if present
     const base64Image = imageData.replace(/^data:image\/\w+;base64,/, '');
 
-    const validationResult = await validatePhotoWithGemini(base64Image, mimeType);
+    const validationResult = await validatePhotoWithGemini(base64Image, mimeType, validTreatmentType);
 
     // Apply threshold - if confidence is below 65%, consider it invalid
     const CONFIDENCE_THRESHOLD = 0.65;

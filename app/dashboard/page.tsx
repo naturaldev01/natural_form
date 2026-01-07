@@ -6,7 +6,8 @@ import Image from 'next/image';
 import { 
   Loader2, LogOut, Users, Search, RefreshCw, 
   Calendar, Phone, Mail, User, TrendingUp, Clock,
-  Download, Filter, ChevronDown, ChevronUp, Eye, X, FileImage, FileText
+  Download, ChevronDown, ChevronUp, Eye, X, FileImage, FileText,
+  Scissors
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/browser';
 import { getCurrentUser, signOut, UserProfile, hasRole } from '@/lib/auth';
@@ -27,6 +28,8 @@ interface ConsultationDetail extends Consultation {
   transformed_image_url?: string;
 }
 
+type TabType = 'teeth' | 'hair';
+
 // Minimum date for data: December 20, 2025
 const MIN_DATE = '2025-12-20T00:00:00+00:00';
 
@@ -34,7 +37,9 @@ export default function DashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [consultations, setConsultations] = useState<Consultation[]>([]);
+  const [activeTab, setActiveTab] = useState<TabType>('teeth');
+  const [teethConsultations, setTeethConsultations] = useState<Consultation[]>([]);
+  const [hairConsultations, setHairConsultations] = useState<Consultation[]>([]);
   const [loadingData, setLoadingData] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<'created_at' | 'first_name' | 'email'>('created_at');
@@ -157,18 +162,32 @@ export default function DashboardPage() {
     try {
       const supabase = createClient();
       
-      // Tüm datayı çek (limit yok - filtreleme client-side yapılacak)
-      const { data, error } = await (supabase
-        .from('unique_consultations') as any)
+      // Fetch teeth consultations
+      const { data: teethData, error: teethError } = await supabase
+        .from('consultations')
         .select('id, first_name, last_name, email, phone, treatment_type, created_at, pdf_url')
+        .eq('treatment_type', 'teeth')
         .order(sortField, { ascending: sortOrder === 'asc' });
 
-      if (error) {
-        console.error('[Dashboard] Fetch error:', error.message);
-        throw error;
+      if (teethError) {
+        console.error('[Dashboard] Fetch teeth error:', teethError.message);
+      } else {
+        setTeethConsultations(teethData || []);
+      }
+
+      // Fetch hair consultations
+      const { data: hairData, error: hairError } = await supabase
+        .from('consultations')
+        .select('id, first_name, last_name, email, phone, treatment_type, created_at, pdf_url')
+        .eq('treatment_type', 'hair')
+        .order(sortField, { ascending: sortOrder === 'asc' });
+
+      if (hairError) {
+        console.error('[Dashboard] Fetch hair error:', hairError.message);
+      } else {
+        setHairConsultations(hairData || []);
       }
       
-      setConsultations(data || []);
     } catch (err) {
       console.error('[Dashboard] Failed to fetch consultations:', err);
     } finally {
@@ -185,6 +204,11 @@ export default function DashboardPage() {
       fetchConsultations();
     }
   }, [profile, fetchConsultations]);
+
+  // Reset pagination when switching tabs
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
 
   const handleLogout = async () => {
     try {
@@ -212,8 +236,8 @@ export default function DashboardPage() {
     
     try {
       const supabase = createClient();
-      const { data, error } = await (supabase
-        .from('unique_consultations') as any)
+      const { data, error } = await supabase
+        .from('consultations')
         .select('original_image_url, transformed_image_url')
         .eq('id', consultation.id)
         .single();
@@ -248,10 +272,19 @@ export default function DashboardPage() {
     return false;
   };
 
+  // Get current consultations based on active tab
+  const currentConsultations = activeTab === 'teeth' ? teethConsultations : hairConsultations;
+
   // Test data'yı filtrele (bu tüm istatistikler için kullanılacak)
-  const realConsultations = consultations.filter(consultation => 
+  const realTeethConsultations = teethConsultations.filter(consultation => 
     !isTestData(consultation.email, consultation.first_name, consultation.last_name)
   );
+  
+  const realHairConsultations = hairConsultations.filter(consultation => 
+    !isTestData(consultation.email, consultation.first_name, consultation.last_name)
+  );
+
+  const realConsultations = activeTab === 'teeth' ? realTeethConsultations : realHairConsultations;
 
   // İstatistikler için hesaplamalar
   const today = new Date();
@@ -295,12 +328,13 @@ export default function DashboardPage() {
   );
 
   const exportToCSV = () => {
-    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Date', 'PDF URL'];
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Treatment Type', 'Date', 'PDF URL'];
     const csvData = filteredConsultations.map(c => [
       c.first_name,
       c.last_name,
       c.email,
       c.phone,
+      c.treatment_type,
       new Date(c.created_at).toLocaleString(),
       c.pdf_url || ''
     ]);
@@ -313,7 +347,7 @@ export default function DashboardPage() {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `teeth_consultations_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `${activeTab}_consultations_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
   };
 
@@ -387,16 +421,61 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
+        {/* Tab Switcher */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab('teeth')}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all ${
+              activeTab === 'teeth'
+                ? 'bg-[#006069] text-white shadow-lg shadow-[#006069]/25'
+                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2C8 2 6 5 6 8c0 3 1 5 1 8 0 2-1 4-1 4h12s-1-2-1-4c0-3 1-5 1-8 0-3-2-6-6-6z" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Teeth Consultations
+            <span className={`px-2 py-0.5 rounded-full text-xs ${
+              activeTab === 'teeth' 
+                ? 'bg-white/20' 
+                : 'bg-gray-100'
+            }`}>
+              {realTeethConsultations.length}
+            </span>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('hair')}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all ${
+              activeTab === 'hair'
+                ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/25'
+                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            <Scissors className="w-5 h-5" />
+            Hair Transplant Consultations
+            <span className={`px-2 py-0.5 rounded-full text-xs ${
+              activeTab === 'hair' 
+                ? 'bg-white/20' 
+                : 'bg-gray-100'
+            }`}>
+              {realHairConsultations.length}
+            </span>
+          </button>
+        </div>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-[#006069]/10 rounded-xl flex items-center justify-center">
-                <Users className="w-6 h-6 text-[#006069]" />
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                activeTab === 'teeth' ? 'bg-[#006069]/10' : 'bg-amber-100'
+              }`}>
+                <Users className={`w-6 h-6 ${activeTab === 'teeth' ? 'text-[#006069]' : 'text-amber-600'}`} />
               </div>
               <div>
                 <p className="text-3xl font-bold text-gray-900">{calculatedTotalCount}</p>
-                <p className="text-sm text-gray-500">Total Consultations</p>
+                <p className="text-sm text-gray-500">Total {activeTab === 'teeth' ? 'Teeth' : 'Hair'} Consultations</p>
               </div>
             </div>
           </div>
@@ -429,12 +508,14 @@ export default function DashboardPage() {
         {/* Data Table */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           {/* Table Header */}
-          <div className="p-6 border-b border-gray-100">
+          <div className={`p-6 border-b ${activeTab === 'teeth' ? 'border-gray-100' : 'border-amber-100'}`}>
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Teeth Consultation Leads</h2>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {activeTab === 'teeth' ? 'Teeth Consultation Leads' : 'Hair Transplant Consultation Leads'}
+                </h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  Data from December 20, 2025 onwards • {filteredConsultations.length} records
+                  {filteredConsultations.length} records
                 </p>
               </div>
               
@@ -585,7 +666,11 @@ export default function DashboardPage() {
                 {/* Export */}
                 <button
                   onClick={exportToCSV}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#006069] hover:bg-[#004750] text-white text-sm font-medium rounded-lg transition-colors"
+                  className={`flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors ${
+                    activeTab === 'teeth' 
+                      ? 'bg-[#006069] hover:bg-[#004750]' 
+                      : 'bg-amber-600 hover:bg-amber-700'
+                  }`}
                 >
                   <Download className="w-4 h-4" />
                   Export CSV
@@ -668,7 +753,11 @@ export default function DashboardPage() {
                     <tr key={consultation.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-[#006069] to-[#004750] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm ${
+                            activeTab === 'teeth' 
+                              ? 'bg-gradient-to-br from-[#006069] to-[#004750]' 
+                              : 'bg-gradient-to-br from-amber-500 to-amber-700'
+                          }`}>
                             {consultation.first_name?.charAt(0) || '?'}{consultation.last_name?.charAt(0) || '?'}
                           </div>
                           <div>
@@ -715,7 +804,11 @@ export default function DashboardPage() {
                       <td className="px-6 py-4">
                         <button
                           onClick={() => handleViewConsultation(consultation)}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-[#006069]/10 hover:bg-[#006069]/20 text-[#006069] text-sm font-medium rounded-lg transition-colors"
+                          className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                            activeTab === 'teeth'
+                              ? 'bg-[#006069]/10 hover:bg-[#006069]/20 text-[#006069]'
+                              : 'bg-amber-100 hover:bg-amber-200 text-amber-700'
+                          }`}
                         >
                           <Eye className="w-4 h-4" />
                           View
@@ -778,11 +871,22 @@ export default function DashboardPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+            <div className={`flex items-center justify-between p-6 border-b ${
+              selectedConsultation.treatment_type === 'hair' ? 'border-amber-100' : 'border-gray-100'
+            }`}>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">
-                  {selectedConsultation.first_name} {selectedConsultation.last_name}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-gray-900">
+                    {selectedConsultation.first_name} {selectedConsultation.last_name}
+                  </h3>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    selectedConsultation.treatment_type === 'hair'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-[#006069]/10 text-[#006069]'
+                  }`}>
+                    {selectedConsultation.treatment_type === 'hair' ? 'Hair Transplant' : 'Teeth'}
+                  </span>
+                </div>
                 <p className="text-sm text-gray-500">
                   {new Date(selectedConsultation.created_at).toLocaleDateString('en-GB', {
                     day: '2-digit',
@@ -877,4 +981,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

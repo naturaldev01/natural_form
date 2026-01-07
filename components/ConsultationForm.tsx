@@ -398,7 +398,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
     setValidationError(null);
   };
 
-  const validatePhoto = async (imageDataUrl: string, mimeType: string): Promise<{
+  const validatePhoto = async (imageDataUrl: string, mimeType: string, treatmentType: 'teeth' | 'hair'): Promise<{
     isValid: boolean;
     issues: string[];
     reason: string;
@@ -412,6 +412,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
         body: JSON.stringify({
           imageData: imageDataUrl,
           mimeType,
+          treatmentType,
         }),
       });
 
@@ -457,30 +458,28 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
     setError(null);
     setValidationError(null);
 
-    // Validate photos before processing (only for teeth treatment)
-    if (formData.treatmentType === 'teeth') {
-      setValidatingPhoto(true);
+    // Validate photos before processing (for both teeth and hair treatments)
+    setValidatingPhoto(true);
+    
+    for (let i = 0; i < previews.length; i++) {
+      const preview = previews[i];
+      const mimeType = formData.images[i]?.type || 'image/jpeg';
       
-      for (let i = 0; i < previews.length; i++) {
-        const preview = previews[i];
-        const mimeType = formData.images[i]?.type || 'image/jpeg';
-        
-        const validationResult = await validatePhoto(preview, mimeType);
-        
-        if (!validationResult.isValid) {
-          setValidatingPhoto(false);
-          setLoading(false);
-          setValidationError({
-            show: true,
-            issues: validationResult.issues,
-            reason: validationResult.reason,
-          });
-          return;
-        }
+      const validationResult = await validatePhoto(preview, mimeType, formData.treatmentType);
+      
+      if (!validationResult.isValid) {
+        setValidatingPhoto(false);
+        setLoading(false);
+        setValidationError({
+          show: true,
+          issues: validationResult.issues,
+          reason: validationResult.reason,
+        });
+        return;
       }
-      
-      setValidatingPhoto(false);
     }
+    
+    setValidatingPhoto(false);
 
     try {
       const results: TransformationResult[] = [];
@@ -1269,11 +1268,14 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
             <button
               type="button"
               onClick={() => handleTreatmentSelect('teeth')}
-              className="flex-1 py-3 px-6 rounded-xl font-medium transition-all shadow-sm bg-[#006069] text-white shadow-lg"
+              className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all shadow-sm ${
+                formData.treatmentType === 'teeth'
+                  ? 'bg-[#006069] text-white shadow-lg'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
             >
               {t('form.treatment.teeth')}
             </button>
-            {/* Hair button hidden for now
             <button
               type="button"
               onClick={() => handleTreatmentSelect('hair')}
@@ -1285,7 +1287,6 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
             >
               {t('form.treatment.hair')}
             </button>
-            */}
           </div>
         </div>
 
@@ -1847,6 +1848,25 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                   </div>
                 )}
 
+                {/* Hair Transplant Disclaimer */}
+                {formData.treatmentType === 'hair' && (
+                  <div className="mt-10 bg-amber-50 border border-amber-200 rounded-2xl p-6 max-w-3xl mx-auto">
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                        <span className="text-2xl">⚠️</span>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-lg font-bold text-amber-800 mb-2">
+                          {t('results.hair.disclaimer.title')}
+                        </h4>
+                        <p className="text-amber-700 text-sm leading-relaxed">
+                          {t('results.hair.disclaimer.text')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* CTA Section */}
                 <div className="mt-12 text-center">
                   <div className="bg-gradient-to-r from-[#006069]/10 to-[#004750]/10 rounded-2xl p-8 max-w-2xl mx-auto">
@@ -2026,7 +2046,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                 {t('validation.failed.title')}
               </h3>
               <p className="text-gray-600 text-sm">
-                {t('validation.failed.description')}
+                {formData.treatmentType === 'hair' ? t('validation.failed.description.hair') : t('validation.failed.description')}
               </p>
             </div>
 
@@ -2095,7 +2115,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
               </button>
             </div>
             <p className="text-sm text-gray-600">
-              {t('photoGuide.description')}
+              {formData.treatmentType === 'hair' ? t('photoGuide.description.hair') : t('photoGuide.description')}
             </p>
             
             {/* Example Photos Grid */}
@@ -2108,7 +2128,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                 </div>
                 <div className="relative rounded-xl overflow-hidden border-2 border-gray-100">
                   <Image
-                    src="/assets/model_women.jpeg"
+                    src={formData.treatmentType === 'hair' ? '/assets/model_hair_women.png' : '/assets/model_women.jpeg'}
                     alt={t('photoGuide.femaleExample')}
                     width={400}
                     height={500}
@@ -2129,7 +2149,7 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
                 </div>
                 <div className="relative rounded-xl overflow-hidden border-2 border-gray-100">
                   <Image
-                    src="/assets/model_men.jpeg"
+                    src={formData.treatmentType === 'hair' ? '/assets/model_hair_men.png' : '/assets/model_men.jpeg'}
                     alt={t('photoGuide.maleExample')}
                     width={400}
                     height={500}
@@ -2152,19 +2172,19 @@ export default function ConsultationForm({ onSuccess, initialTreatmentType = 'te
               <ul className="space-y-2">
                 <li className="flex items-start gap-2 text-sm text-gray-700">
                   <Check className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                  <span>{t('photoGuide.tip1')}</span>
+                  <span>{formData.treatmentType === 'hair' ? t('photoGuide.tip1.hair') : t('photoGuide.tip1')}</span>
                 </li>
                 <li className="flex items-start gap-2 text-sm text-gray-700">
                   <Check className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                  <span>{t('photoGuide.tip2')}</span>
+                  <span>{formData.treatmentType === 'hair' ? t('photoGuide.tip2.hair') : t('photoGuide.tip2')}</span>
                 </li>
                 <li className="flex items-start gap-2 text-sm text-gray-700">
                   <Check className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                  <span>{t('photoGuide.tip3')}</span>
+                  <span>{formData.treatmentType === 'hair' ? t('photoGuide.tip3.hair') : t('photoGuide.tip3')}</span>
                 </li>
                 <li className="flex items-start gap-2 text-sm text-gray-700">
                   <Check className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                  <span>{t('photoGuide.tip4')}</span>
+                  <span>{formData.treatmentType === 'hair' ? t('photoGuide.tip4.hair') : t('photoGuide.tip4')}</span>
                 </li>
               </ul>
             </div>
