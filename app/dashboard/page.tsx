@@ -163,8 +163,8 @@ export default function DashboardPage() {
       const supabase = createClient();
       
       // Fetch teeth consultations
-      const { data: teethData, error: teethError } = await supabase
-        .from('consultations')
+      const { data: teethData, error: teethError } = await (supabase
+        .from('consultations') as any)
         .select('id, first_name, last_name, email, phone, treatment_type, created_at, pdf_url')
         .eq('treatment_type', 'teeth')
         .order(sortField, { ascending: sortOrder === 'asc' });
@@ -176,8 +176,8 @@ export default function DashboardPage() {
       }
 
       // Fetch hair consultations
-      const { data: hairData, error: hairError } = await supabase
-        .from('consultations')
+      const { data: hairData, error: hairError } = await (supabase
+        .from('consultations') as any)
         .select('id, first_name, last_name, email, phone, treatment_type, created_at, pdf_url')
         .eq('treatment_type', 'hair')
         .order(sortField, { ascending: sortOrder === 'asc' });
@@ -236,8 +236,8 @@ export default function DashboardPage() {
     
     try {
       const supabase = createClient();
-      const { data, error } = await supabase
-        .from('consultations')
+      const { data, error } = await (supabase
+        .from('consultations') as any)
         .select('original_image_url, transformed_image_url')
         .eq('id', consultation.id)
         .single();
