@@ -286,14 +286,30 @@ export default function DashboardPage() {
 
   const realConsultations = activeTab === 'teeth' ? realTeethConsultations : realHairConsultations;
 
+  // Unique lead hesaplama fonksiyonu (email bazlı)
+  const getUniqueLeads = (consultations: Consultation[]) => {
+    const uniqueEmails = new Set<string>();
+    return consultations.filter(c => {
+      const email = c.email?.toLowerCase().trim();
+      if (!email || uniqueEmails.has(email)) return false;
+      uniqueEmails.add(email);
+      return true;
+    });
+  };
+
   // İstatistikler için hesaplamalar
   const today = new Date();
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6);
   
-  const calculatedTotalCount = realConsultations.length;
-  const calculatedTodayCount = realConsultations.filter(c => new Date(c.created_at) >= todayStart).length;
-  const calculatedWeekCount = realConsultations.filter(c => new Date(c.created_at) >= weekStart).length;
+  // Unique lead sayıları
+  const uniqueTeethLeads = getUniqueLeads(realTeethConsultations);
+  const uniqueHairLeads = getUniqueLeads(realHairConsultations);
+  const uniqueConsultations = activeTab === 'teeth' ? uniqueTeethLeads : uniqueHairLeads;
+  
+  const calculatedTotalCount = uniqueConsultations.length;
+  const calculatedTodayCount = getUniqueLeads(realConsultations.filter(c => new Date(c.created_at) >= todayStart)).length;
+  const calculatedWeekCount = getUniqueLeads(realConsultations.filter(c => new Date(c.created_at) >= weekStart)).length;
 
   const filteredConsultations = realConsultations.filter(consultation => {
     // Date filter
@@ -440,7 +456,7 @@ export default function DashboardPage() {
                 ? 'bg-white/20' 
                 : 'bg-gray-100'
             }`}>
-              {realTeethConsultations.length}
+              {uniqueTeethLeads.length}
             </span>
           </button>
           
@@ -459,7 +475,7 @@ export default function DashboardPage() {
                 ? 'bg-white/20' 
                 : 'bg-gray-100'
             }`}>
-              {realHairConsultations.length}
+              {uniqueHairLeads.length}
             </span>
           </button>
         </div>
