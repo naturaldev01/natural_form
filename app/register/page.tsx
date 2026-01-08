@@ -16,7 +16,7 @@ export default function RegisterPage() {
     phone: '',
     password: '',
     confirmPassword: '',
-    role: 'sales' as 'sales' | 'marketing',
+    role: 'sales' as 'sales' | 'marketing' | 'doctor',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -186,11 +186,11 @@ export default function RegisterPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Department
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, role: 'sales' })}
-                  className={`py-3 px-4 rounded-xl border-2 transition-all font-medium ${
+                  className={`py-3 px-3 rounded-xl border-2 transition-all font-medium text-sm ${
                     formData.role === 'sales'
                       ? 'border-[#006069] bg-[#006069]/5 text-[#006069]'
                       : 'border-gray-200 text-gray-600 hover:border-gray-300'
@@ -201,13 +201,24 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, role: 'marketing' })}
-                  className={`py-3 px-4 rounded-xl border-2 transition-all font-medium ${
+                  className={`py-3 px-3 rounded-xl border-2 transition-all font-medium text-sm ${
                     formData.role === 'marketing'
                       ? 'border-[#006069] bg-[#006069]/5 text-[#006069]'
                       : 'border-gray-200 text-gray-600 hover:border-gray-300'
                   }`}
                 >
                   📊 Marketing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, role: 'doctor' })}
+                  className={`py-3 px-3 rounded-xl border-2 transition-all font-medium text-sm ${
+                    formData.role === 'doctor'
+                      ? 'border-[#006069] bg-[#006069]/5 text-[#006069]'
+                      : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  🩺 Doctor
                 </button>
               </div>
             </div>

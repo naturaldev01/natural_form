@@ -36,8 +36,12 @@ export default function LoginPage() {
       // Redirect based on role
       if (profile.role === 'admin') {
         router.push('/admin');
-      } else if (profile.role === 'sales' || profile.role === 'marketing') {
+      } else if (profile.role === 'marketing') {
+        // Marketing can view leads
         router.push('/dashboard');
+      } else if (profile.role === 'sales' || profile.role === 'doctor') {
+        // Sales and doctors go to studio (no access to leads)
+        router.push('/studio');
       } else {
         router.push('/');
       }

@@ -40,7 +40,7 @@ export async function middleware(request: NextRequest) {
     const { data: { user }, error } = await supabase.auth.getUser();
 
     // Protected routes
-    const protectedPaths = ['/dashboard', '/admin'];
+    const protectedPaths = ['/dashboard', '/admin', '/studio'];
     const isProtectedPath = protectedPaths.some(path => 
       request.nextUrl.pathname.startsWith(path)
     );
@@ -52,9 +52,16 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // Login sayfasındaysa ve zaten giriş yapmışsa dashboard'a yönlendir
+    // Login sayfasındaysa ve zaten giriş yapmışsa yönlendir
+    // Redirect parametresi varsa oraya git, yoksa studio'ya git (en güvenli default)
     if (request.nextUrl.pathname === '/login' && user && !error) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+      const redirectTo = request.nextUrl.searchParams.get('redirect');
+      // Redirect path güvenliyse oraya git
+      if (redirectTo && ['/dashboard', '/admin', '/studio'].some(p => redirectTo.startsWith(p))) {
+        return NextResponse.redirect(new URL(redirectTo, request.url));
+      }
+      // Default olarak studio'ya git (herkes erişebilir)
+      return NextResponse.redirect(new URL('/studio', request.url));
     }
   } catch (e) {
     // Auth hatası durumunda devam et, login'e yönlendirme yapma

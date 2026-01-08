@@ -1,11 +1,13 @@
 import { createClient } from './supabase/browser';
 
+export type UserRole = 'sales' | 'marketing' | 'admin' | 'doctor';
+
 export interface UserProfile {
   id: string;
   email: string;
   first_name: string;
   last_name: string;
-  role: 'sales' | 'marketing' | 'admin';
+  role: UserRole;
   phone?: string;
   is_approved: boolean;
   created_at: string;
@@ -17,7 +19,7 @@ export interface SignUpData {
   password: string;
   firstName: string;
   lastName: string;
-  role: 'sales' | 'marketing';
+  role: 'sales' | 'marketing' | 'doctor';
   phone?: string;
 }
 

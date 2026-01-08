@@ -21,7 +21,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<UserWithProfile[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('pending');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'sales' | 'marketing' | 'admin'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'sales' | 'marketing' | 'admin' | 'doctor'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
 
@@ -192,7 +192,7 @@ export default function AdminPage() {
   });
 
   const realUsers = users.filter(u => !isTestUserData(u.email, u.first_name, u.last_name));
-  const pendingCount = realUsers.filter(u => !u.is_approved && (u.role === 'sales' || u.role === 'marketing')).length;
+  const pendingCount = realUsers.filter(u => !u.is_approved && (u.role === 'sales' || u.role === 'marketing' || u.role === 'doctor')).length;
 
   if (loading) {
     return (
@@ -209,6 +209,7 @@ export default function AdminPage() {
       case 'admin': return 'bg-purple-100 text-purple-700';
       case 'marketing': return 'bg-blue-100 text-blue-700';
       case 'sales': return 'bg-green-100 text-green-700';
+      case 'doctor': return 'bg-teal-100 text-teal-700';
       default: return 'bg-gray-100 text-gray-700';
     }
   };
@@ -319,9 +320,9 @@ export default function AdminPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {realUsers.filter(u => u.role === 'sales' || u.role === 'marketing').length}
+                  {realUsers.filter(u => u.role === 'sales' || u.role === 'marketing' || u.role === 'doctor').length}
                 </p>
-                <p className="text-sm text-gray-500">Sales & Marketing</p>
+                <p className="text-sm text-gray-500">Sales, Marketing & Doctors</p>
               </div>
             </div>
           </div>
@@ -390,6 +391,7 @@ export default function AdminPage() {
                   <option value="all">All Roles</option>
                   <option value="sales">Sales</option>
                   <option value="marketing">Marketing</option>
+                  <option value="doctor">Doctor</option>
                   <option value="admin">Admin</option>
                 </select>
 
@@ -467,6 +469,7 @@ export default function AdminPage() {
                         >
                           <option value="sales">Sales</option>
                           <option value="marketing">Marketing</option>
+                          <option value="doctor">Doctor</option>
                           <option value="admin">Admin</option>
                         </select>
                       </td>

@@ -136,9 +136,14 @@ export default function DashboardPage() {
         return;
       }
 
-      // Only sales, marketing and admin can access this page
-      if (!hasRole(userData.profile, ['admin', 'sales', 'marketing'])) {
-        router.push('/');
+      // Only marketing and admin can access dashboard (view leads)
+      if (!hasRole(userData.profile, ['admin', 'marketing'])) {
+        // Sales and doctors are redirected to studio
+        if (hasRole(userData.profile, ['sales', 'doctor'])) {
+          router.push('/studio');
+        } else {
+          router.push('/');
+        }
         return;
       }
 
@@ -372,6 +377,7 @@ export default function DashboardPage() {
       case 'admin': return { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Admin' };
       case 'sales': return { bg: 'bg-green-100', text: 'text-green-700', label: 'Sales' };
       case 'marketing': return { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Marketing' };
+      case 'doctor': return { bg: 'bg-teal-100', text: 'text-teal-700', label: 'Doctor' };
       default: return { bg: 'bg-gray-100', text: 'text-gray-700', label: role };
     }
   };
@@ -413,12 +419,20 @@ export default function DashboardPage() {
           
           <div className="flex items-center gap-4">
             {profile.role === 'admin' && (
-              <a
-                href="/admin"
-                className="text-sm text-gray-600 hover:text-[#006069] transition-colors"
-              >
-                Admin Panel →
-              </a>
+              <>
+                <a
+                  href="/studio"
+                  className="text-sm text-[#006069] hover:text-[#004750] font-medium transition-colors"
+                >
+                  🎨 Studio
+                </a>
+                <a
+                  href="/admin"
+                  className="text-sm text-gray-600 hover:text-[#006069] transition-colors"
+                >
+                  Admin Panel →
+                </a>
+              </>
             )}
             <div className="flex items-center gap-2 text-gray-600">
               <User className="w-5 h-5" />
